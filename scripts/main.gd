@@ -11,11 +11,15 @@ const START_POS := Vector2(196.0, 204.0)
 const EXIT_POS := Vector2(796.0, 484.0)
 const PLAYER_SPEED := 200.0
 const ENEMY_SPEED := 85.0
-const SPELL_RECIPES := {
-	"QE": "EMBER",       # ranged projectile
-	"EQ": "MEND",        # self healing
-	"RR": "PULSE"        # point-blank area attack
-}
+const CombatInput = preload("res://scripts/combat_input.gd")
+const SpellBook = preload("res://scripts/spell_book.gd")
+const SpellDefinition = preload("res://scripts/spell_definition.gd")
+
+@export_range(0.1, 0.6, 0.01) var shift_double_tap_window := 0.3
+var combat_input := CombatInput.new()
+var spell_book := SpellBook.new()
+# Override before _ready() in tests to avoid touching the player's real save.
+var save_path := SAVE_PATH
 
 var rng := RandomNumberGenerator.new()
 var dungeon_rng := RandomNumberGenerator.new()
@@ -32,8 +36,8 @@ var player_mana := 100.0
 var focus := 100.0
 var focus_active := false
 var player_attack_cooldown := 0.0
-var casting := false
 var runes: Array[String] = []
+var cast_feedback := "Hold Shift or double-tap Shift. Q > E > LMB: Mana Bolt."
 var status_message := ""
 var status_time := 0.0
 var carried_gold := 0
@@ -47,6 +51,13 @@ var corpse: Dictionary = {}
 var corpse_pos := Vector2.ZERO
 
 func _ready() -> void:
+	combat_input.double_tap_window = shift_double_tap_window
+	combat_input.mode_changed.connect(_on_combat_mode_changed)
+	combat_input.command_entered.connect(_on_command_entered)
+	combat_input.attack_requested.connect(_melee_attack)
+	combat_input.cast_requested.connect(_cast_spell)
+	combat_input.cancel_requested.connect(_cancel_spell)
+	combat_input.interact_requested.connect(_interact)
 	rng.randomize()
 	_load_or_create_character()
 	status_message = "Choose a dungeon: [1] Ruins (fixed)  [2] Flux Maze (shifting)"
@@ -60,8 +71,8 @@ func _max_mana() -> float:
 	return (45.0 + float(magic_talent) * 1.1) * (1.0 - 0.10 * float(injury_stacks))
 
 func _load_or_create_character() -> void:
-	if FileAccess.file_exists(SAVE_PATH):
-		var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if FileAccess.file_exists(save_path):
+		var file := FileAccess.open(save_path, FileAccess.READ)
 		if file != null:
 			var parsed = JSON.parse_string(file.get_as_text())
 			if parsed is Dictionary:
@@ -96,9 +107,11 @@ func _save_character() -> void:
 		"corpse": corpse,
 		"learned": learned_spells
 	}
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file := FileAccess.open(save_path, FileAccess.WRITE)
 	if file != null:
 		file.store_string(JSON.stringify(save, "\t"))
+	else:
+		_message("Save failed: " + error_string(FileAccess.get_open_error()))
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -109,52 +122,56 @@ func _input(event: InputEvent) -> void:
 				_enter_dungeon("SHIFTING")
 			elif event.keycode == KEY_H:
 				_heal_injuries()
-		elif game_state == "DUNGEON":
-			if event.keycode == KEY_F:
-				_interact()
-			elif event.keycode == KEY_ESCAPE:
-				casting = false
-				runes.clear()
-			elif casting and event.keycode in [KEY_Q, KEY_E, KEY_R]:
-				if runes.size() < 3:
-					match event.keycode:
-						KEY_Q: runes.append("Q")
-						KEY_E: runes.append("E")
-						KEY_R: runes.append("R")
-					_show_rune_feedback()
-	if event is InputEventMouseButton and game_state == "DUNGEON":
-		if event.button_index == MOUSE_BUTTON_RIGHT:
-			casting = event.pressed
-			if event.pressed:
-				runes.clear()
-		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-			if casting:
-				_cast_spell()
-			else:
-				_melee_attack()
+	if game_state == "DUNGEON":
+		combat_input.handle_event(event, float(Time.get_ticks_msec()) / 1000.0)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_reset_combat_input()
+
+func _reset_combat_input() -> void:
+	combat_input.reset()
+	runes.clear()
+	focus_active = false
+	cast_feedback = "Q > E > LMB: Mana Bolt (no element research needed)."
+
+func _on_combat_mode_changed(_previous: CombatInput.Mode, current: CombatInput.Mode) -> void:
+	# A single Shift release discards its short mobile-casting attempt.
+	# A switch between casting modes otherwise keeps the explicit command queue.
+	if current == CombatInput.Mode.NORMAL:
+		runes.clear()
+		cast_feedback = "Q > E > LMB: Mana Bolt (hold Shift or double-tap Shift)."
+
+func _on_command_entered(token: String) -> void:
+	if runes.size() >= spell_book.max_commands:
+		cast_feedback = "Command buffer full. RMB / Esc to clear."
+		return
+	runes.append(token)
+	_show_rune_feedback()
+
+func _cancel_spell() -> void:
+	runes.clear()
+	cast_feedback = "Cast cancelled. Enter Q > E again for Mana Bolt."
 
 func _process(delta: float) -> void:
 	if status_time > 0.0:
 		status_time -= delta
 	if game_state == "DUNGEON":
-		var axis := Vector2.ZERO
-		if Input.is_key_pressed(KEY_A): axis.x -= 1.0
-		if Input.is_key_pressed(KEY_D): axis.x += 1.0
-		if Input.is_key_pressed(KEY_W): axis.y -= 1.0
-		if Input.is_key_pressed(KEY_S): axis.y += 1.0
+		var axis := combat_input.movement_axis()
 		if axis != Vector2.ZERO:
 			axis = axis.normalized()
 			_try_move_player(axis * PLAYER_SPEED * delta)
 		player_attack_cooldown = maxf(0.0, player_attack_cooldown - delta)
 		player_mana = minf(_max_mana(), player_mana + 3.0 * delta)
-		focus_active = Input.is_key_pressed(KEY_SHIFT) and focus > 0.0
+		focus_active = combat_input.swift_sense_held and focus > 0.0
 		if focus_active:
 			focus = maxf(0.0, focus - 32.0 * delta)
 		else:
 			focus = minf(100.0, focus + 14.0 * delta)
 		var enemy_time := 0.35 if focus_active else 1.0
 		_update_enemies(delta * enemy_time)
-		_update_missiles(delta, enemy_time)
+		if game_state == "DUNGEON":
+			_update_missiles(delta, enemy_time)
 	queue_redraw()
 
 func _message(s: String) -> void:
@@ -172,8 +189,7 @@ func _enter_dungeon(kind: String) -> void:
 	focus = 100.0
 	carried_gold = 0
 	missiles.clear()
-	casting = false
-	runes.clear()
+	_reset_combat_input()
 	_spawn_enemies()
 	corpse_pos = Vector2.ZERO
 	if not corpse.is_empty() and str(corpse.get("kind", "")) == kind:
@@ -181,7 +197,7 @@ func _enter_dungeon(kind: String) -> void:
 			corpse_pos = Vector2(float(corpse.get("x", 0.0)), float(corpse.get("y", 0.0)))
 		else:
 			corpse_pos = _random_open_point()
-	_message("Explore, research spells, and return through the gold gate [F].")
+	_message("Mana Bolt: hold Shift, type Q > E, then LMB. Double-tap Shift: stationary casting.")
 
 func _build_map(seed_value: int) -> void:
 	dungeon_rng.seed = seed_value
@@ -259,7 +275,7 @@ func _update_missiles(delta: float, enemy_time: float) -> void:
 		var m := missiles[i]
 		var hostile := bool(m["hostile"])
 		var actor_delta := delta * enemy_time if hostile else delta
-		var speed := 160.0 if hostile else 460.0
+		var speed := float(m.get("speed", 160.0 if hostile else 460.0))
 		m["pos"] = m["pos"] + m["dir"] * speed * actor_delta
 		m["life"] = float(m["life"]) - actor_delta
 		var pos: Vector2 = m["pos"]
@@ -289,48 +305,34 @@ func _melee_attack() -> void:
 		if offset.length() < 78.0 and aim.normalized().dot(offset.normalized()) > 0.30:
 			e["hp"] = float(e["hp"]) - (18.0 + float(body_talent) * 0.13)
 
-func _rune_sequence() -> String:
-	var result := ""
-	for s in runes: result += s
-	return result
-
 func _show_rune_feedback() -> void:
-	var seq := _rune_sequence()
-	if SPELL_RECIPES.has(seq):
-		_message("Runes resonate! Complete the cast with LEFT CLICK.")
-		return
-	for recipe in SPELL_RECIPES.keys():
-		if str(recipe).begins_with(seq):
-			_message("Faint resonance... explore the next rune.")
-			return
-	_message("The mana pattern collapses. Release RMB to restart.")
+	cast_feedback = str(spell_book.inspect(runes)["message"])
 
 func _cast_spell() -> void:
-	var recipe := _rune_sequence()
-	var spell := str(SPELL_RECIPES.get(recipe, ""))
-	if spell == "":
-		_message("Failed cast: no stable formula.")
+	var result := spell_book.inspect(runes)
+	if result["state"] != "ready":
+		cast_feedback = "Cast failed: " + str(result["message"])
 		return
-	var cost := 15.0 if spell == "EMBER" else 24.0
-	if player_mana < cost:
-		_message("Insufficient mana.")
+	var definition: SpellDefinition = result["spell"]
+	if player_mana < definition.mana_cost:
+		cast_feedback = "Insufficient mana: need %d, have %d." % [ceili(definition.mana_cost), floori(player_mana)]
 		return
-	player_mana -= cost
+	match definition.effect:
+		&"projectile":
+			var dir := get_global_mouse_position() - player_pos
+			if dir.length() < 1.0: dir = Vector2.RIGHT
+			missiles.append({"pos": player_pos, "dir": dir.normalized(), "hostile": false,
+				"life": definition.lifetime, "dmg": definition.damage, "speed": definition.projectile_speed,
+				"color": definition.projectile_color, "spell_id": definition.spell_id})
+		_:
+			cast_feedback = "Unsupported spell effect: " + str(definition.effect)
+			return
+	player_mana -= definition.mana_cost
+	var spell := str(definition.spell_id)
 	if not learned_spells.has(spell):
 		learned_spells.append(spell)
 		_save_character()
-		_message("NEW DISCOVERY: " + spell + "! The formula is saved.")
-	match spell:
-		"EMBER":
-			var dir := get_global_mouse_position() - player_pos
-			if dir.length() < 1.0: dir = Vector2.RIGHT
-			missiles.append({"pos": player_pos, "dir": dir.normalized(), "hostile": false, "life": 1.8, "dmg": 35.0})
-		"MEND":
-			player_hp = minf(_max_hp(), player_hp + 27.0)
-		"PULSE":
-			for e in enemies:
-				if Vector2(e["pos"]).distance_to(player_pos) < 120.0:
-					e["hp"] = float(e["hp"]) - 35.0
+	cast_feedback = "Released %s [%s]. Enter commands again to cast." % [definition.display_name, " > ".join(runes)]
 	runes.clear()
 
 func _interact() -> void:
@@ -345,6 +347,7 @@ func _interact() -> void:
 		bank_gold += carried_gold
 		carried_gold = 0
 		game_state = "HUB"
+		_reset_combat_input()
 		_save_character()
 		_message("Returned safely. Your carried gold has been banked.")
 		return
@@ -360,7 +363,7 @@ func _die() -> void:
 	player_hp = _max_hp()
 	player_mana = _max_mana()
 	game_state = "HUB"
-	casting = false
+	_reset_combat_input()
 	_save_character()
 	_message("DEATH: +1 injury, -15 armor. Return to your dungeon to recover 70% of carried gold.")
 
@@ -398,7 +401,7 @@ func _draw() -> void:
 		_draw_hub()
 	else:
 		_draw_dungeon()
-	if status_time > 0.0:
+	if game_state == "HUB" and status_time > 0.0:
 		draw_rect(Rect2(60.0, 634.0, 1040.0, 48.0), Color("33425b"))
 		_label_at(Vector2(75.0, 665.0), status_message, 16, Color("ffffff"))
 
@@ -431,7 +434,9 @@ func _draw_dungeon() -> void:
 	for e in enemies:
 		draw_circle(Vector2(e["pos"]), 15.0, Color("dd6670"))
 	for m in missiles:
-		draw_circle(Vector2(m["pos"]), 6.0, Color("ff8a54") if not bool(m["hostile"]) else Color("c993e9"))
+		draw_circle(Vector2(m["pos"]), 6.0, Color(m.get("color", Color("ff8a54"))) if not bool(m["hostile"]) else Color("c993e9"))
+	if combat_input.mode == CombatInput.Mode.FOCUS_CAST:
+		draw_arc(player_pos, 23.0, 0.0, TAU, 40, Color("ffe5ab"), 2.0)
 	if focus_active:
 		draw_circle(player_pos, 27.0, Color(0.3, 0.78, 1.0, 0.3))
 		draw_circle(player_pos + Vector2(-19.0, 4.0), 11.0, Color(0.2, 0.6, 1.0, 0.2))
@@ -447,13 +452,24 @@ func _draw_dungeon() -> void:
 	_label_at(Vector2(932.0, 262.0), "Focus: %d / 100" % roundi(focus), 17)
 	_label_at(Vector2(932.0, 294.0), "Gold: %d" % carried_gold, 17)
 	_label_at(Vector2(932.0, 326.0), "Enemies: %d" % enemies.size(), 17)
-	_label_at(Vector2(932.0, 369.0), "WASD: move", 15, Color("b9d4e2"))
-	_label_at(Vector2(932.0, 392.0), "LMB: sword", 15, Color("b9d4e2"))
-	_label_at(Vector2(932.0, 415.0), "SHIFT: swift sense", 15, Color("b9d4e2"))
-	_label_at(Vector2(932.0, 438.0), "HOLD RMB: spell", 15, Color("b9d4e2"))
-	_label_at(Vector2(932.0, 461.0), "Q/E/R: combine", 15, Color("b9d4e2"))
-	_label_at(Vector2(932.0, 484.0), "RMB+LMB: cast", 15, Color("b9d4e2"))
-	_label_at(Vector2(932.0, 507.0), "F: loot / exit", 15, Color("b9d4e2"))
-	_label_at(Vector2(932.0, 550.0), "Runes: %s" % _rune_sequence(), 16, Color("ffe5ab"))
-	if focus_active:
-		_label_at(Vector2(180.0, 620.0), "SWIFT SENSE ACTIVE: enemies 35% speed / player 100%", 17, Color("a4e5ff"))
+	var mode_name: String = CombatInput.Mode.keys()[combat_input.mode]
+	_label_at(Vector2(932.0, 357.0), mode_name, 17, Color("ffe5ab"))
+	_label_at(Vector2(932.0, 384.0), "WASD: " + ("commands" if combat_input.mode == CombatInput.Mode.FOCUS_CAST else "move"), 15, Color("b9d4e2"))
+	_label_at(Vector2(932.0, 408.0), "Shift hold: mobile cast", 14, Color("b9d4e2"))
+	_label_at(Vector2(932.0, 432.0), "Shift x2: focus toggle", 14, Color("b9d4e2"))
+	_label_at(Vector2(932.0, 456.0), "LMB: sword / release", 14, Color("b9d4e2"))
+	_label_at(Vector2(932.0, 480.0), "RMB / Esc: cancel", 14, Color("b9d4e2"))
+	_label_at(Vector2(932.0, 504.0), "Alt hold: swift sense", 14, Color("b9d4e2"))
+	_label_at(Vector2(932.0, 528.0), "F: interact / command", 14, Color("b9d4e2"))
+	_label_at(Vector2(932.0, 566.0), "Mana Bolt: Q > E", 15, Color("ffe5ab"))
+	_draw_cast_hud()
+
+func _draw_cast_hud() -> void:
+	# Two rows keep all 32 buffer tokens visible instead of overflowing the sidebar.
+	draw_rect(Rect2(60.0, 594.0, 1040.0, 92.0), Color("33425b"))
+	_label_at(Vector2(75.0, 615.0), "Commands: " + ("(empty)" if runes.is_empty() else " > ".join(runes.slice(0, 16))), 15, Color("ffe5ab"))
+	if runes.size() > 16:
+		_label_at(Vector2(165.0, 635.0), " > ".join(runes.slice(16)), 15, Color("ffe5ab"))
+	_label_at(Vector2(75.0, 658.0), cast_feedback, 14)
+	if status_time > 0.0:
+		_label_at(Vector2(75.0, 680.0), status_message, 13, Color("b9d4e2"))

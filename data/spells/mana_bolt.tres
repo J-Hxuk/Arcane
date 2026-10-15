@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+spell_id = &"MANA_BOLT"
+display_name = "Mana Bolt"
+commands = PackedStringArray("Q", "E")
+requires_elements = PackedStringArray()
+mana_cost = 15.0
+effect = &"projectile"
+damage = 35.0
+projectile_speed = 460.0
+lifetime = 1.8
+projectile_color = Color(0.62, 0.92, 1, 1)

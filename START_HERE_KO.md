@@ -1,15 +1,16 @@
 # 여기서부터 시작
 
-- 최신 기획서: `GDD_v1_0_KO.md`
-- Codex 첫 실제 작업: `CODEX_TASK_002.md`
-- 기존 실행 프로젝트: `project.godot`
-- 기존 코드: `scripts/main.gd`
+- 최신 기획서: [GDD_v1_0_KO.md](GDD_v1_0_KO.md)
+- 작업 기준: [CODEX_TASK_002.md](CODEX_TASK_002.md)
+- 실행 프로젝트: `project.godot`
+- 현재 조작법: [README.md](README.md)
+- 이번 변경·검증·미구현 범위: [IMPLEMENTATION_REPORT_KO.md](IMPLEMENTATION_REPORT_KO.md)
 
-**중요:** 패키지에 들어 있는 `main.gd`는 예전 방식(Shift 시간 감속, 마우스 오른쪽 버튼 룬 시전)의 기존 초안이다. 이번 기획의 세 가지 시전 상태 및 3속성 제한은 **아직 코드에 반영되지 않았다**. `CODEX_TASK_002.md`의 순서대로 구현할 것.
+Godot에서 `project.godot`을 가져오고 F5로 실행한다. 거점에서 1/2로 입장한다.
+Shift 유지로 이동 시전, Shift 빠르게 두 번으로 초집중 토글, Q → E → LMB로 기초 마력탄을 직접 시전한다.
+초집중에서는 이동이 멈추고 WASD가 커맨드로 기록된다. RMB/Esc로 취소한다.
+일반 모드의 F는 상호작용, 시전 모드의 F는 커맨드다. 초월 감각은 임시 Alt로 분리했다.
 
-## 준비
-1. Godot 4.x 안정판 설치 후 `project.godot` Import.
-2. 프로젝트 실행(F5), 오류 기록. 현재 컨테이너에는 Godot 실행 파일이 없어서 실제 엔진 검증을 수행하지 못했다.
-3. 버전 관리(Git) 초기화.
-4. Codex에서 프로젝트 폴더를 열고 `CODEX_TASK_002.md` 작업을 요청.
-5. 입력 인식과 슬롯 영구 잠금부터 테스트; 다음으로 기초 마력탄 → 연구 피드백 순으로 진행.
+Godot 4.7.2에서 자동 테스트와 실제 렌더링을 확인했다.
+캐릭터의 영구 3속성 연구 잠금·확인 UI·화염/축약 연구는 아직 미구현이다.
+이전 `CODEX_TASK.md`의 Shift/RMB 조작 설명은 현재 구현과 다르다.

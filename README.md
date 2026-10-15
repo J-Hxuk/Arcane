@@ -1,48 +1,62 @@
-# Arcane Legacy — 2D Top-down Gameplay Prototype
+# Arcane Legacy — Godot 2D 탑뷰 프로토타입
 
-An **asset-free Godot 4.x GDScript prototype** for testing three connected ideas:
+최신 규칙은 [GDD_v1_0_KO.md](GDD_v1_0_KO.md), 작업 기준은 [CODEX_TASK_002.md](CODEX_TASK_002.md)를 따른다.
+현재 구현은 일반 전투·이동 시전·초집중 시전과 속성 비의존 기초 마력탄에 집중한다.
+연구 확정 UI와 캐릭터의 영구 3속성 잠금은 아직 구현하지 않았다.
 
-1. Death persists on **one immutable generated character**: banked gold and discoveries survive; wounds and equipment wear are applied; carried gold drops as a recoverable corpse with 30% lost.
-2. Two different dungeon layouts: **fixed ruins** reuse their original map seed and corpse position; **shifting maze** gets a new seed and relocates recoverable belongings.
-3. Movement-independent **rune-casting** and swordmaster-inspired **relative time dilation**: player remains normal speed while enemies and enemy projectiles run at 35% speed.
+## 실행 및 조작
 
-## Play
-1. Download and extract the project folder.
-2. Install Godot 4.4+ from https://godotengine.org/download (4.6 recommended, subject to compatibility).
-3. In the Godot Project Manager click **Import**, select `project.godot`.
-4. Run using **F6/F5** or the Play button (F5 is conventional for project run).
+Godot에서 `project.godot`을 가져오고 F5로 실행한다. 실제 검증 엔진은 Godot 4.7.2이며 다른 4.x 버전은 미검증이다.
 
-## Inputs
-| State | Input | Effect |
+| 상태 | 입력 | 동작 |
 |---|---|---|
-| Hub | 1 | Enter fixed-layout ruins |
-| Hub | 2 | Enter reshuffling flux maze |
-| Hub | H | Pay gold to cure accumulated injuries |
-| Dungeon | WASD | Move freely |
-| Dungeon | Mouse aim + left click | Sword swing |
-| Dungeon | Hold SHIFT | Slow enemy movement / projectiles but not the player; consumes focus |
-| Dungeon | Hold right mouse, Q/E/R in sequence, then left click | Explore and cast rune recipes |
-| Dungeon | Right mouse release | Cancel rune sequence |
-| Dungeon | F near orange marker | Recover the previous corpse's gold |
-| Dungeon | F near gold gate | Return to hub; deposit expedition gold |
+| 거점 | 1 / 2 | 고정 / 변동 던전 입장 |
+| 거점 | H | 기존 부상 회복 |
+| 일반 전투 | WASD, 마우스 조준 + LMB | 이동, 검 공격 |
+| 일반 전투 | F | 유실물 회수 / 출구에서 귀환 |
+| 이동 시전 | Shift 유지 | 시전 모드, WASD는 계속 이동 |
+| 초집중 시전 | Shift 빠르게 두 번 | 초집중 토글, 이동 정지, WASD도 커맨드로 사용 |
+| 시전 모드 | Q → E → LMB | 기초 마력탄 직접 시전 |
+| 시전 모드 | RMB / Esc | 큐 취소, 초집중이면 일반 전투로 복귀 |
+| 시전 모드 | F | 상호작용 대신 커맨드 입력 |
+| 던전 | Alt 유지 | 기존 초월 감각 시험 |
 
-**Spoiler - test recipes** (leave these OUT of the eventual live game's guide):
-- `Q E` -> Ember: fiery ranged projectile.
-- `E Q` -> Mend: restore HP.
-- `R R` -> Pulse: short-range AoE attack.
+보조 커맨드는 Q/E/R/F/Z/X/C/V/T/G, 초집중 추가 커맨드는 W/A/S/D다.
+현재 유효한 주문은 기초 마력탄 하나다. 모든 발동에 직접 커맨드를 다시 입력해야 한다.
+화면에 입력 상태, 누적 커맨드, 마나, 미완성·오입력·마나 부족 피드백이 표시된다.
 
-## Limits / engineering to address next
-- This is a **prototype**, not a released game. It uses circles/rectangles instead of sprites; no audio, animation, menus, inventory, true room-graph or enemy AI pathfinding.
-- Unstable layouts currently randomize block placement inside one arena rather than producing a fully procedural multi-room labyrinth.
-- A future version should store dead-drop gear item IDs, stability/expiry rules, dungeon floor IDs and corpse ownership. Only currency is modeled here.
-- Real save-file protection cannot be guaranteed for offline single-player. The character is retained unless players modify/delete local save data.
-- Rune commands are currently shared across characters, vulnerable to online recipe sharing. A future research system could individualize rune-symbol mappings per character and offer in-game clues, while preserving discoverability and accessibility.
-- Damage and time slow are **per actor** with manual scaled deltas. Global `Engine.time_scale` is deliberately NOT used, to avoid slowing the player and future multiplayer complications.
-- No Godot binary was available in the authoring environment, so this zip was **not verified by a Godot runtime**. Open in Godot and let Codex fix any import/parser or input issues as its first task. Visual/playtest tuning has not been completed.
+Shift 첫 누름은 즉시 이동 시전이며, 해제를 사이에 둔 두 번째 누름이 첫 누름부터 임시 0.3초 이내이면 초집중이 우선한다.
+긴 홀드나 명시적인 커맨드·공격·상호작용·취소는 더블탭 후보를 해제한다.
+이동 시전에서 Shift를 놓으면 큐를 비우고 일반 전투로 돌아간다.
+Main 노드의 Inspector에서 시간 창을, Project Settings → Input Map에서 키를 조정할 수 있다.
+현재 키 의미·주문 순서·수치는 테스트용이다.
 
-## Recommended Codex next task
-1. Open the imported project in Codex IDE, desktop, or CLI.
-2. Run/import the Godot project and fix parse/runtime problems (if any).
-3. Refactor the monolithic `scripts/main.gd` into `Player`, `Enemy`, `DungeonManager`, `RuneSystem`, `TimePerception`, `DeathRecovery`, `SaveManager` components.
-4. Add a tiny Godot headless smoke test for first boot, input transitions, resurrection, persisted fixed-dungeon seeds, and variable dungeon seed changes.
-5. Replace the arena with 5-8 connected procedural rooms while guaranteeing reachable loot and an exit.
+## 코드 구조
+
+- `scenes/main.tscn`, `scripts/main.gd`: 기존 도형 기반 맵·전투·저장·HUD, 입력 신호와 주문 실행 연결.
+- `scripts/combat_input.gd`: 3가지 상태, 입력 이벤트·홀드·더블탭·키 반복 방지.
+- `scripts/base_elements.gd`: 확정 기본 속성 6종. 속성 비의존 조작은 빈 요구 목록으로 표현.
+- `scripts/spell_definition.gd`, `data/spells/mana_bolt.tres`: Resource 기반 주문 데이터.
+- `scripts/spell_book.gd`: 커맨드 판정·진행 피드백·필요 속성 접근 검사. 4속성 이상 조합은 거부.
+- `tests/test_combat.gd`, `tests/preview_combat.gd`: 회귀 테스트 및 실제 렌더링/입력 전달 확인.
+
+기존 캐릭터 저장·재능·발견 기록·사망·유실물·고정/변동 던전 동작은 유지한다.
+이전 실험 주문 EMBER/MEND/PULSE는 연구 조건 없이 발동하던 방식이어서 현재 시전 목록에서 제외했다.
+기존 저장의 발견 이름은 삭제하거나 다른 주문으로 바꾸지 않는다.
+
+## 검증
+
+`$Godot`을 설치된 Godot console 실행 파일 경로로 지정한 뒤 PowerShell에서 실행한다.
+
+```powershell
+& $Godot --headless --path . --editor --import --quit
+& $Godot --headless --path . --script tests/test_combat.gd
+& $Godot --path . --audio-driver Dummy --rendering-driver opengl3 --script tests/preview_combat.gd
+```
+
+테스트 세이브·로그·이미지는 Git에서 제외한 `.task002_artifacts/`에 둔다.
+실제 플레이어의 `user://arcane_legacy_save.json`은 테스트에서 사용하지 않는다.
+전체 변경 내역, 테스트 결과, 미검증 범위는 [구현 보고서](IMPLEMENTATION_REPORT_KO.md)에 정리했다.
+
+아트·오디오·완성형 연구 시스템·멀티플레이·배포 빌드는 이번 작업에 포함하지 않았다.
+실제 손으로 조작하는 플레이테스트와 밸런싱은 후속 확인이 필요하다.
