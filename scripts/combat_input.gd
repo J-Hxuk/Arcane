@@ -6,6 +6,7 @@ enum Mode { NORMAL, MOBILE_CAST, FOCUS_CAST }
 
 signal mode_changed(previous: Mode, current: Mode)
 signal command_entered(token: String)
+signal command_released(token: String, held_ms: int)
 signal attack_requested
 signal cast_requested
 signal cancel_requested
@@ -22,6 +23,8 @@ var _pressed_sources: Dictionary = {}
 var _action_sources: Dictionary = {}
 var _tap_started_at := -INF
 var _tap_released := false
+var last_command_time := 0.0
+var _command_holds: Dictionary = {}
 
 func handle_event(event: InputEvent, now: float) -> void:
 	if not (event is InputEventKey or event is InputEventMouseButton):
@@ -35,6 +38,10 @@ func handle_event(event: InputEvent, now: float) -> void:
 		_pressed_sources[source] = true
 	else:
 		_pressed_sources.erase(source)
+		if _command_holds.has(source):
+			var held: Dictionary = _command_holds[source]
+			_command_holds.erase(source)
+			command_released.emit(held["token"], maxi(0, roundi((now - held["time"]) * 1000.0)))
 	for action in MOVEMENT_ACTIONS:
 		_update_action(action, event, source)
 	_update_action(&"swift_sense", event, source)
@@ -72,6 +79,8 @@ func handle_event(event: InputEvent, now: float) -> void:
 		var token: String = COMMAND_TOKENS[index]
 		if event.is_action(StringName("rune_" + token.to_lower())):
 			_invalidate_tap()
+			last_command_time = now
+			_command_holds[source] = {"token": token, "time": now}
 			command_entered.emit(token)
 			return
 
@@ -86,6 +95,7 @@ func movement_axis() -> Vector2:
 func reset() -> void:
 	_pressed_sources.clear()
 	_action_sources.clear()
+	_command_holds.clear()
 	swift_sense_held = false
 	_invalidate_tap()
 	_set_mode(Mode.NORMAL)

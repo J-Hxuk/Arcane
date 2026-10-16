@@ -14,12 +14,31 @@ const ENEMY_SPEED := 85.0
 const CombatInput = preload("res://scripts/combat_input.gd")
 const SpellBook = preload("res://scripts/spell_book.gd")
 const SpellDefinition = preload("res://scripts/spell_definition.gd")
+const CharacterResearch = preload("res://scripts/character_research.gd")
+const CharacterSave = preload("res://scripts/character_save.gd")
+const ResearchPanel = preload("res://scripts/research_panel.gd")
+const ChantProfile = preload("res://scripts/chant_profile.gd")
+const ManaSimulator = preload("res://scripts/mana_simulator.gd")
+const ExperimentJournal = preload("res://scripts/experiment_journal.gd")
+const LaboratoryPanel = preload("res://scripts/laboratory_panel.gd")
 
 @export_range(0.1, 0.6, 0.01) var shift_double_tap_window := 0.3
 var combat_input := CombatInput.new()
 var spell_book := SpellBook.new()
 # Override before _ready() in tests to avoid touching the player's real save.
 var save_path := SAVE_PATH
+var research := CharacterResearch.new()
+var research_panel: ResearchPanel
+var save_writable := true
+var save_error := ""
+var _save_document: Dictionary = {}
+var chant_profile := ChantProfile.new()
+var journal := ExperimentJournal.new()
+var laboratory_panel: LaboratoryPanel
+var chant_inputs: Array = []
+var chant_started_ms := 0
+var exhaustion_seconds := 0.0
+var last_laboratory_result: Dictionary = {}
 
 var rng := RandomNumberGenerator.new()
 var dungeon_rng := RandomNumberGenerator.new()
@@ -60,7 +79,22 @@ func _ready() -> void:
 	combat_input.interact_requested.connect(_interact)
 	rng.randomize()
 	_load_or_create_character()
-	status_message = "Choose a dungeon: [1] Ruins (fixed)  [2] Flux Maze (shifting)"
+	research_panel = ResearchPanel.new()
+	add_child(research_panel)
+	research_panel.setup(research)
+	research_panel.writable = save_writable
+	research_panel.commit_requested.connect(_confirm_element_research)
+	research_panel.clue_requested.connect(_acquire_debug_clue)
+	research_panel.refresh()
+	laboratory_panel = LaboratoryPanel.new()
+	add_child(laboratory_panel)
+	laboratory_panel.setup(journal, chant_profile)
+	laboratory_panel.release_requested.connect(_cast_spell)
+	laboratory_panel.exit_requested.connect(_leave_laboratory)
+	laboratory_panel.recover_requested.connect(_laboratory_recover)
+	laboratory_panel.note_requested.connect(_save_experiment_note)
+	combat_input.command_released.connect(_on_command_released)
+	status_message = "Choose a dungeon: [1] Ruins (fixed)  [2] Flux Maze (shifting)" if save_error.is_empty() else save_error
 	status_time = 6.0
 	queue_redraw()
 
@@ -71,33 +105,92 @@ func _max_mana() -> float:
 	return (45.0 + float(magic_talent) * 1.1) * (1.0 - 0.10 * float(injury_stacks))
 
 func _load_or_create_character() -> void:
-	if FileAccess.file_exists(save_path):
-		var file := FileAccess.open(save_path, FileAccess.READ)
-		if file != null:
-			var parsed = JSON.parse_string(file.get_as_text())
-			if parsed is Dictionary:
-				magic_talent = int(parsed.get("magic", 50))
-				body_talent = int(parsed.get("body", 50))
-				bank_gold = int(parsed.get("bank", 100))
-				injury_stacks = clampi(int(parsed.get("injury", 0)), 0, 3)
-				armor_durability = int(parsed.get("armor", 100))
-				fixed_seed = int(parsed.get("fixed_seed", 12345))
-				corpse = parsed.get("corpse", {})
-				for name in parsed.get("learned", []):
-					learned_spells.append(str(name))
-				player_hp = _max_hp()
-				player_mana = _max_mana()
+	var loaded := CharacterSave.load_file(save_path)
+	if loaded["state"] == "error":
+		_protect_save(loaded["message"])
+		return
+	if loaded["state"] == "loaded":
+		var parsed: Dictionary = loaded["data"]
+		_save_document = parsed.duplicate(true)
+		# Validate before assigning gameplay fields; never reroll an existing file.
+		for field in ["magic", "body", "bank", "injury", "armor", "fixed_seed"]:
+			var value = parsed.get(field, 0)
+			if not (value is int or value is float):
+				_protect_save("Invalid character field: " + field)
 				return
+		if not parsed.get("corpse", {}) is Dictionary or not parsed.get("learned", []) is Array:
+			_protect_save("Invalid character knowledge / corpse data.")
+			return
+		magic_talent = int(parsed.get("magic", 50))
+		body_talent = int(parsed.get("body", 50))
+		bank_gold = int(parsed.get("bank", 100))
+		injury_stacks = clampi(int(parsed.get("injury", 0)), 0, 3)
+		armor_durability = int(parsed.get("armor", 100))
+		fixed_seed = int(parsed.get("fixed_seed", 12345))
+		corpse = parsed.get("corpse", {}).duplicate(true)
+		learned_spells.clear()
+		for name in parsed.get("learned", []):
+			learned_spells.append(str(name))
+		player_hp = _max_hp()
+		player_mana = _max_mana()
+		var research_data = parsed.get("research", {})
+		if not research_data is Dictionary or (loaded["version"] >= 1 and not parsed.has("research")):
+			_protect_save("Invalid research save data. Original preserved.")
+			return
+		if loaded["version"] >= 1:
+			for field in ["researched_base_elements", "innate_affinity", "research_clues"]:
+				if not research_data.has(field):
+					_protect_save("Incomplete research save data. Original preserved.")
+					return
+		var error := research.load_data(research_data)
+		if not error.is_empty():
+			_protect_save(error)
+			return
+		if loaded["version"] >= 2 and (not parsed.has("chant") or not parsed.has("laboratory")):
+			_protect_save("Incomplete chant / laboratory save. Original preserved.")
+			return
+		var chant_data = parsed["chant"] if parsed.has("chant") else ChantProfile.generate(rng.randi_range(1, 2147483647))
+		var lab_data = parsed.get("laboratory", {})
+		if not chant_data is Dictionary or not lab_data is Dictionary:
+			_protect_save("Invalid chant / laboratory save. Original preserved.")
+			return
+		error = chant_profile.load_data(chant_data)
+		if error.is_empty(): error = journal.load_data(lab_data)
+		if not error.is_empty():
+			_protect_save(error)
+			return
+		if loaded["migrate"]:
+			if CharacterSave.backup_legacy(save_path, loaded["version"]) != OK:
+				_protect_save("Legacy backup failed. Original preserved.")
+				return
+			_save_character()
+		return
 	var total := rng.randi_range(95, 105)
 	magic_talent = rng.randi_range(15, total - 15)
 	body_talent = total - magic_talent
 	fixed_seed = rng.randi_range(1000, 9999999)
+	# Only genuinely new characters receive affinity. These are provisional scores,
+	# independent of magic/body talent and with no gameplay multiplier in Phase 2A.
+	var affinity: Dictionary = {}
+	var high_element: String = ChantProfile.ELEMENTS[rng.randi_range(0, 5)]
+	for element in CharacterResearch.BaseElements.DEFINITIONS:
+		affinity[element] = 85 if element == high_element else 25
+	research.load_data({"innate_affinity": affinity})
+	chant_profile.load_data(ChantProfile.generate(rng.randi_range(1, 2147483647)))
 	player_hp = _max_hp()
 	player_mana = _max_mana()
 	_save_character()
 
-func _save_character() -> void:
-	var save := {
+func _protect_save(reason: String) -> void:
+	save_writable = false
+	save_error = reason
+	_message(reason)
+
+func _save_character() -> bool:
+	if not save_writable: return false
+	var save := _save_document.duplicate(true)
+	save.merge({
+		"schema_version": CharacterSave.SCHEMA_VERSION,
 		"magic": magic_talent,
 		"body": body_talent,
 		"bank": bank_gold,
@@ -105,15 +198,66 @@ func _save_character() -> void:
 		"armor": armor_durability,
 		"fixed_seed": fixed_seed,
 		"corpse": corpse,
-		"learned": learned_spells
-	}
-	var file := FileAccess.open(save_path, FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify(save, "\t"))
-	else:
-		_message("Save failed: " + error_string(FileAccess.get_open_error()))
+		"learned": learned_spells,
+		"research": research.to_data(),
+		"chant": chant_profile.to_data(),
+		"laboratory": journal.to_data()
+	}, true)
+	var error := CharacterSave.write_file(save_path, save)
+	if error != OK:
+		save_error = "Save failed: " + error_string(error)
+		_message(save_error)
+		return false
+	_save_document = save
+	save_error = ""
+	return true
+
+func _confirm_element_research(element: String, ticket: int = 0) -> String:
+	if not save_writable: return "save_protected"
+	var previous := research.to_data()
+	var result := research.start_element_research(element, ticket)
+	if result == "committed" and not _save_character():
+		research.load_data(previous) # No permanent choice unless it reached disk.
+		result = "save_failed"
+	if research_panel != null:
+		research_panel.feedback.text = "연구 영구 확정 완료: " + element if result == "committed" else "연구 요청: " + result
+		research_panel.refresh()
+	return result
+
+func _acquire_debug_clue(element: String) -> void:
+	if not save_writable: return
+	var previous := research.to_data()
+	var result := research.acquire_clue(element, "book", "debug_book_" + element)
+	if result == "recorded" and not _save_character():
+		research.load_data(previous)
+		result = "save_failed"
+	research_panel.feedback.text = "열람 / 단서: %s · 슬롯 소모 없음 · 기록 %d개" % [result, research.research_clues.size()]
+	research_panel.refresh()
 
 func _input(event: InputEvent) -> void:
+	if game_state == "LAB":
+		if event is InputEventMouseButton and event.button_index != MOUSE_BUTTON_RIGHT: return
+		if laboratory_panel.is_editing():
+			# Text/replay controls must never synthesize a cast or cancel a live one.
+			if event is InputEventKey and not event.pressed:
+				combat_input.handle_event(event, float(Time.get_ticks_msec()) / 1000.0)
+			return
+		# GUI buttons own LMB in the lab; no click-through cast while browsing logs.
+		combat_input.handle_event(event, float(Time.get_ticks_msec()) / 1000.0)
+		return
+	if game_state == "HUB" and research_panel != null:
+		if research_panel.confirmation.visible: return
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.keycode == KEY_B:
+				if research_panel.is_open(): research_panel.close()
+				else: research_panel.open()
+				get_viewport().set_input_as_handled()
+				return
+			if event.keycode == KEY_ESCAPE and research_panel.is_open():
+				research_panel.close()
+				get_viewport().set_input_as_handled()
+				return
+		if research_panel.is_open(): return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if game_state == "HUB":
 			if event.keycode == KEY_1:
@@ -122,40 +266,82 @@ func _input(event: InputEvent) -> void:
 				_enter_dungeon("SHIFTING")
 			elif event.keycode == KEY_H:
 				_heal_injuries()
+			elif event.keycode == KEY_L:
+				_enter_laboratory()
 	if game_state == "DUNGEON":
 		combat_input.handle_event(event, float(Time.get_ticks_msec()) / 1000.0)
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_CLOSE_REQUEST:
 		_reset_combat_input()
 
 func _reset_combat_input() -> void:
+	if game_state == "LAB" and not runes.is_empty(): _record_cancelled_experiment()
 	combat_input.reset()
-	runes.clear()
+	_clear_chant()
 	focus_active = false
 	cast_feedback = "Q > E > LMB: Mana Bolt (no element research needed)."
+	_update_laboratory_live()
 
 func _on_combat_mode_changed(_previous: CombatInput.Mode, current: CombatInput.Mode) -> void:
 	# A single Shift release discards its short mobile-casting attempt.
 	# A switch between casting modes otherwise keeps the explicit command queue.
 	if current == CombatInput.Mode.NORMAL:
-		runes.clear()
+		if game_state == "LAB" and not runes.is_empty(): _record_cancelled_experiment()
+		_clear_chant()
 		cast_feedback = "Q > E > LMB: Mana Bolt (hold Shift or double-tap Shift)."
+	_update_laboratory_live()
 
 func _on_command_entered(token: String) -> void:
 	if runes.size() >= spell_book.max_commands:
 		cast_feedback = "Command buffer full. RMB / Esc to clear."
 		return
 	runes.append(token)
+	var now_ms := roundi(combat_input.last_command_time * 1000.0)
+	if chant_inputs.is_empty(): chant_started_ms = now_ms
+	chant_inputs.append({"key": token, "at_ms": clampi(now_ms - chant_started_ms, 0, 60000), "hold_ms": 0,
+		"started_ms": now_ms, "released": false})
 	_show_rune_feedback()
+	_update_laboratory_live()
+
+func _on_command_released(token: String, held_ms: int) -> void:
+	for index in range(chant_inputs.size() - 1, -1, -1):
+		if chant_inputs[index]["key"] == token and not chant_inputs[index]["released"]:
+			chant_inputs[index]["hold_ms"] = mini(held_ms, 60000)
+			chant_inputs[index]["released"] = true
+			_show_rune_feedback()
+			_update_laboratory_live()
+			return
+
+func _clear_chant() -> void:
+	runes.clear()
+	chant_inputs.clear()
+
+func _simulation_inputs(finalize_holds := false) -> Array:
+	var inputs: Array = []
+	for index in range(runes.size()):
+		var event := {"key": runes[index], "at_ms": index * 100, "hold_ms": 0}
+		if index < chant_inputs.size() and chant_inputs[index]["key"] == runes[index]:
+			var stored: Dictionary = chant_inputs[index]
+			event = {"key": stored["key"], "at_ms": stored["at_ms"], "hold_ms": stored["hold_ms"]}
+			if finalize_holds and not stored["released"]:
+				event["hold_ms"] = clampi(Time.get_ticks_msec() - stored["started_ms"], 0, 60000)
+		inputs.append(event)
+	return inputs
 
 func _cancel_spell() -> void:
-	runes.clear()
+	if game_state == "LAB" and not runes.is_empty(): _record_cancelled_experiment()
+	_clear_chant()
 	cast_feedback = "Cast cancelled. Enter Q > E again for Mana Bolt."
+	_update_laboratory_live()
 
 func _process(delta: float) -> void:
+	exhaustion_seconds = maxf(0.0, exhaustion_seconds - delta)
 	if status_time > 0.0:
 		status_time -= delta
+	if game_state == "LAB":
+		player_mana = minf(_max_mana(), player_mana + 8.0 * delta)
+		_update_laboratory_live()
 	if game_state == "DUNGEON":
 		var axis := combat_input.movement_axis()
 		if axis != Vector2.ZERO:
@@ -179,6 +365,8 @@ func _message(s: String) -> void:
 	status_time = 3.5
 
 func _enter_dungeon(kind: String) -> void:
+	if game_state == "LAB": _leave_laboratory()
+	if research_panel != null: research_panel.set_hub(false)
 	game_state = "DUNGEON"
 	dungeon_kind = kind
 	map_seed = fixed_seed if kind == "FIXED" else rng.randi_range(100, 999999999)
@@ -296,6 +484,7 @@ func _update_missiles(delta: float, enemy_time: float) -> void:
 		_die()
 
 func _melee_attack() -> void:
+	if game_state != "DUNGEON": return
 	if player_attack_cooldown > 0.0: return
 	player_attack_cooldown = 0.42
 	var aim := get_global_mouse_position() - player_pos
@@ -306,16 +495,53 @@ func _melee_attack() -> void:
 			e["hp"] = float(e["hp"]) - (18.0 + float(body_talent) * 0.13)
 
 func _show_rune_feedback() -> void:
-	cast_feedback = str(spell_book.inspect(runes)["message"])
+	cast_feedback = str(_inspect_chant()["message"])
+
+func _inspect_chant(finalize_holds := false) -> Dictionary:
+	var simulation := ManaSimulator.simulate(chant_profile, _simulation_inputs(finalize_holds), true)
+	var legacy := spell_book.inspect(runes, research.researched_base_elements)
+	# Keep the taught QE formula and the existing Resource requirements contract.
+	if legacy["state"] in ["ready", "locked", "invalid_data"] and not (legacy.get("spell") == spell_book.MANA_BOLT and simulation["state"] != "ready"):
+		legacy["simulation"] = simulation
+		return legacy
+	var result := simulation.duplicate(true)
+	result["simulation"] = simulation
+	if simulation["kind"] == "mana_bolt": result["spell"] = spell_book.MANA_BOLT
+	if not runes.is_empty() and runes[0] == "Q" and legacy["state"] == "invalid" and result["state"] != "ready":
+		result["message"] = legacy["message"] + " " + simulation["observation"]
+	return result
 
 func _cast_spell() -> void:
-	var result := spell_book.inspect(runes)
+	if not save_writable:
+		cast_feedback = "Save protected: casting unavailable."
+		return
+	var result := _inspect_chant(true)
+	if exhaustion_seconds > 0.0:
+		cast_feedback = "Exhausted: wait briefly before casting."
+		_record_experiment(result["simulation"], "exhausted", 0.0)
+		return
 	if result["state"] != "ready":
 		cast_feedback = "Cast failed: " + str(result["message"])
+		# A single Q is the existing tutorial's unfinished prefix; keep its behavior.
+		var penalty := 0.0 if runes.is_empty() or runes == ["Q"] or result["state"] in ["locked", "invalid_data"] else minf(2.0, player_mana)
+		player_mana -= penalty
+		if penalty > 0.0: exhaustion_seconds = 1.0
+		_record_experiment(result["simulation"], "failed", penalty)
+		_update_laboratory_live()
 		return
-	var definition: SpellDefinition = result["spell"]
-	if player_mana < definition.mana_cost:
-		cast_feedback = "Insufficient mana: need %d, have %d." % [ceili(definition.mana_cost), floori(player_mana)]
+	var definition: SpellDefinition = result.get("spell")
+	var cost: float = definition.mana_cost if definition != null else result["mana_cost"]
+	if result.has("final_state") and definition != null: cost = result["mana_cost"]
+	if player_mana < cost:
+		cast_feedback = "Insufficient mana: need %d, have %d." % [ceili(cost), floori(player_mana)]
+		_record_experiment(result["simulation"], "insufficient_mana", 0.0)
+		return
+	if definition == null:
+		player_mana -= cost
+		cast_feedback = result["message"]
+		_record_experiment(result["simulation"], "released", cost)
+		_clear_chant()
+		_update_laboratory_live(result["simulation"])
 		return
 	match definition.effect:
 		&"projectile":
@@ -327,15 +553,76 @@ func _cast_spell() -> void:
 		_:
 			cast_feedback = "Unsupported spell effect: " + str(definition.effect)
 			return
-	player_mana -= definition.mana_cost
+	player_mana -= cost
 	var spell := str(definition.spell_id)
 	if not learned_spells.has(spell):
 		learned_spells.append(spell)
 		_save_character()
 	cast_feedback = "Released %s [%s]. Enter commands again to cast." % [definition.display_name, " > ".join(runes)]
-	runes.clear()
+	_record_experiment(result["simulation"], "released", cost)
+	_clear_chant()
+	_update_laboratory_live(result["simulation"])
+
+func _enter_laboratory() -> void:
+	if game_state != "HUB" or not save_writable: return
+	research_panel.close()
+	research_panel.set_hub(false)
+	_reset_combat_input()
+	game_state = "LAB"
+	last_laboratory_result = {}
+	laboratory_panel.open(research_panel.opener.theme)
+	_update_laboratory_live()
+
+func _leave_laboratory() -> void:
+	if game_state != "LAB": return
+	_reset_combat_input()
+	game_state = "HUB"
+	laboratory_panel.close()
+	research_panel.set_hub(true)
+
+func _laboratory_recover() -> void:
+	if game_state != "LAB": return
+	player_mana = _max_mana()
+	exhaustion_seconds = 0.0
+	_update_laboratory_live()
+
+func _record_experiment(simulation: Dictionary, outcome: String, spent: float) -> void:
+	if game_state != "LAB" or runes.is_empty(): return
+	var previous := journal.to_data()
+	var inputs := _simulation_inputs(true)
+	var elapsed := 0
+	for event in inputs: elapsed = maxi(elapsed, event["at_ms"] + event["hold_ms"])
+	journal.append(simulation, outcome, spent, elapsed, ChantProfile.VERSION)
+	if not _save_character():
+		journal.load_data(previous)
+		laboratory_panel.message.text = "기록 저장 실패: " + save_error
+	else:
+		laboratory_panel.message.text = "실험 자동 기록 완료. 단계와 두 기록을 자유롭게 비교하세요."
+	laboratory_panel.refresh(true)
+
+func _record_cancelled_experiment() -> void:
+	var simulation := ManaSimulator.simulate(chant_profile, _simulation_inputs(true), true)
+	last_laboratory_result = simulation
+	_record_experiment(simulation, "cancelled", 0.0)
+
+func _save_experiment_note(id: int, value: String) -> void:
+	if game_state != "LAB" or not save_writable: return
+	var previous := journal.to_data()
+	if not journal.note(id, value): return
+	if not _save_character():
+		journal.load_data(previous)
+		laboratory_panel.message.text = "메모 저장 실패: " + save_error
+	else: laboratory_panel.message.text = "메모를 저장했습니다."
+	laboratory_panel.refresh()
+
+func _update_laboratory_live(last_result: Dictionary = {}) -> void:
+	if game_state != "LAB" or laboratory_panel == null: return
+	if not last_result.is_empty(): last_laboratory_result = last_result
+	var result := last_laboratory_result if runes.is_empty() and not last_laboratory_result.is_empty() else ManaSimulator.simulate(chant_profile, _simulation_inputs(), true)
+	laboratory_panel.show_live(runes, result["observation"], player_mana, exhaustion_seconds, result["final_state"], CombatInput.Mode.keys()[combat_input.mode])
 
 func _interact() -> void:
+	if game_state != "DUNGEON": return
 	if corpse_pos != Vector2.ZERO and player_pos.distance_to(corpse_pos) < 49.0:
 		carried_gold += int(corpse.get("gold", 0))
 		corpse.clear()
@@ -347,6 +634,7 @@ func _interact() -> void:
 		bank_gold += carried_gold
 		carried_gold = 0
 		game_state = "HUB"
+		if research_panel != null: research_panel.set_hub(true)
 		_reset_combat_input()
 		_save_character()
 		_message("Returned safely. Your carried gold has been banked.")
@@ -363,6 +651,7 @@ func _die() -> void:
 	player_hp = _max_hp()
 	player_mana = _max_mana()
 	game_state = "HUB"
+	if research_panel != null: research_panel.set_hub(true)
 	_reset_combat_input()
 	_save_character()
 	_message("DEATH: +1 injury, -15 armor. Return to your dungeon to recover 70% of carried gold.")
@@ -399,8 +688,11 @@ func _draw() -> void:
 	_label_at(Vector2(46.0, 80.0), "Single character  |  talent: magic %d / body %d  |  discoveries: %s" % [magic_talent, body_talent, _spell_summary()], 13, Color("b9d4e2"))
 	if game_state == "HUB":
 		_draw_hub()
-	else:
+	elif game_state == "DUNGEON":
 		_draw_dungeon()
+	_label_at(Vector2(65.0, 707.0), "Research: %d/3  [%s]" % [research.researched_base_elements.size(), ", ".join(research.researched_base_elements)], 14, Color("b9d4e2"))
+	if not save_writable:
+		_label_at(Vector2(65.0, 601.0), "SAVE PROTECTED: " + save_error, 14, Color("ffcd91"))
 	if game_state == "HUB" and status_time > 0.0:
 		draw_rect(Rect2(60.0, 634.0, 1040.0, 48.0), Color("33425b"))
 		_label_at(Vector2(75.0, 665.0), status_message, 16, Color("ffffff"))
@@ -414,6 +706,7 @@ func _draw_hub() -> void:
 	if not corpse.is_empty():
 		_label_at(Vector2(110.0, 447.0), "Your belongings remain in: %s (recoverable gold: %d)" % [str(corpse.get("kind", "")), int(corpse.get("gold", 0))], 18, Color("ffcd91"))
 	_label_at(Vector2(110.0, 545.0), "Save file: user://arcane_legacy_save.json", 14, Color("9caec4"))
+	_label_at(Vector2(110.0, 580.0), "[L] Laboratory - chant, observe, replay and compare", 18, Color("a8d6b5"))
 
 func _draw_dungeon() -> void:
 	draw_rect(AREA, Color("202938"))

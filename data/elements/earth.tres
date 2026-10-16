@@ -1,0 +1,10 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/element_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+element_id = &"EARTH"
+display_name = "土 · 토"
+domain = "토양 · 광물"
+derived_concepts = PackedStringArray()

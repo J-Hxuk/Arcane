@@ -1,0 +1,10 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/element_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+element_id = &"WOOD"
+display_name = "木 · 목"
+domain = "생장 · 생체"
+derived_concepts = PackedStringArray("재생", "독", "혈마법")
