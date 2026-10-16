@@ -35,6 +35,7 @@ func _run() -> void:
 	game.set_process(false)
 	await _tap(KEY_L)
 	var ui = game.laboratory_panel
+	ui.arena.set_process(false) # Explicitly freeze world time for read-only replay checks.
 	check(game.game_state == "LAB" and ui.panel.visible, "Engine L enters the laboratory screen")
 	if OS.get_cmdline_user_args().has("--chant-debug"):
 		check(ui.debug_window != null and ui.debug_window.visible and ui.debug_view.text.contains("first_words"), "Explicit developer flag opens mapping/state debug window")
@@ -54,11 +55,13 @@ func _run() -> void:
 	check(game.journal.records().size() == 1 and game.journal.records()[0]["result"]["outcome"] == "cancelled", "Leaving mobile mode auto-records the unfinished experiment")
 	await _chant(Helper.path_for(game.chant_profile, ["ACCUMULATE", "COMPRESS", "SHAPE", "DIRECT", "STABILIZE"]))
 	await _click(ui.release_button)
-	check(game.missiles.size() == 1 and game.journal.records().size() == 2, "Real personal chant and release button create a bolt and automatic record")
+	check(ui.arena.missiles.size() == 1 and game.journal.records().size() == 2, "Real personal chant and release button create a safe-arena bolt and automatic record")
+	await _click(ui.journal_button)
 	await _key(KEY_SHIFT, false)
 	await _chant(Helper.path_for(game.chant_profile, ["ACCUMULATE", "SHAPE", "COMPRESS", "DIRECT", "STABILIZE"]))
 	await _click(ui.release_button)
-	check(game.journal.records().size() == 3 and game.missiles.size() == 2, "Alternative direct chant records the same effect via another path")
+	check(game.journal.records().size() == 3 and ui.arena.missiles.size() == 2, "Alternative direct chant records the same effect via another path")
+	await _click(ui.journal_button)
 	await _key(KEY_SHIFT, false)
 	# Change replay steps through real SpinBox controls, with no live effects.
 	var mana: float = game.player_mana
@@ -69,7 +72,7 @@ func _run() -> void:
 	await _click(ui.next_buttons[1])
 	await _click(ui.next_buttons[1])
 	check(ui.steppers[0].value == 3 and ui.steppers[1].value == 3 and ui.views[0].text != ui.views[1].text, "GUI next buttons show different inputs and observations for the selected steps")
-	check(game.player_mana == mana and game.journal.records().size() == count and game.missiles.size() == 2 and game.research.to_data() == research, "Real step replay/side-by-side comparison has no mana, casting or slot side effects")
+	check(game.player_mana == mana and game.journal.records().size() == count and ui.arena.missiles.size() == 2 and game.research.to_data() == research, "Real step replay/side-by-side comparison has no mana, casting or slot side effects")
 	await _capture("lab_compare")
 	await _click(ui.note)
 	var event := InputEventKey.new()

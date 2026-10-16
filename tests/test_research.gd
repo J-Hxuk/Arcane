@@ -64,41 +64,27 @@ func _test_model() -> void:
 	_check(Elements.DEFINITIONS.size() == 6, "Exactly six independent base resources")
 	for element in Elements.DEFINITIONS:
 		_check(str(Elements.DEFINITIONS[element].element_id) == element, "Stable resource ID: " + element)
-	_check(Elements.DEFINITIONS["VOID"].derived_concepts == PackedStringArray(["물리력", "운동", "중력", "공간"]), "VOID has its own physical/motion/gravity/space domain")
-	_check(model.researched_base_elements.is_empty(), "Research starts at zero")
-	_check(model.load_data({"innate_affinity": {"FIRE": 91, "VOID": 12}}).is_empty() and model.researched_base_elements.is_empty(), "Innate affinity does not consume slots")
+	_check(model.main_attribute == null and model.researched_base_elements.is_empty(), "New research starts unawakened with zero slots")
+	_check(model.load_data({"innate_affinity": {"FIRE": 91, "VOID": 12}}).is_empty() and model.researched_base_elements.is_empty(), "Innate affinity never consumes slots")
 	var exposed := model.innate_affinity
 	exposed["FIRE"] = 0
-	_check(model.innate_affinity["FIRE"] == 91, "Affinity getter cannot mutate permanent data")
-	for source in ["book", "observation", "hint"]:
-		_check(model.acquire_clue("FIRE", source, source) == "recorded", "Knowledge source recorded independently: " + source)
-	_check(model.researched_base_elements.is_empty() and model.research_clues.size() == 3, "Books/observations/hints consume zero slots")
-	_check(model.start_element_research("FIRE") == "confirmation_required", "Direct call without confirmation is rejected")
-	_check(model.start_element_research("LIGHTNING", 42) == "invalid_element", "Derived concept cannot take a base slot")
-	var request := model.request_research("FIRE")
-	_check(model.researched_base_elements.is_empty(), "Request alone does not commit")
-	_check(model.start_element_research("WATER", request["ticket"]) == "confirmation_required", "Ticket is bound to its selected element")
-	model.cancel_request()
-	_check(model.start_element_research("FIRE", request["ticket"]) == "confirmation_required", "Cancelled ticket is rejected")
-	var stale := model.request_research("FIRE")
-	request = model.request_research("WOOD")
-	_check(model.start_element_research("FIRE", stale["ticket"]) == "confirmation_required", "Superseded ticket is rejected")
-	_check(model.start_element_research("WOOD", request["ticket"]) == "committed", "First permanent research commits")
-	_check(model.start_element_research("WOOD", request["ticket"]) == "already_researched" and model.researched_base_elements.size() == 1, "Repeated confirmation is an idempotent no-op")
+	_check(model.innate_affinity["FIRE"] == 91, "Affinity getter is detached")
+	for source in ["book", "observation", "hint", "mentor"]:
+		_check(model.acquire_clue("FIRE", source, source) == "recorded", "Independent clue source: " + source)
+	_check(model.researched_base_elements.is_empty(), "Knowledge sources never occupy slots")
+	_check(model.request_research("FIRE")["state"] == "awakening_required" and model.start_element_research("FIRE", 99) == "confirmation_required", "Old request cannot bypass the ritual")
+	_check(model.start_element_research("LIGHTNING", 42) == "invalid_element", "Derived concept is not a base slot")
+	_check(model.load_data({"researched_base_elements": ["WOOD", "WATER", "VOID"], "innate_affinity": model.innate_affinity}).is_empty(), "Three legacy choices load losslessly")
+	_check(model.main_attribute == null and model.researched_base_elements.size() == 3, "Legacy roles are not guessed")
 	var exposed_elements := model.researched_base_elements
-	exposed_elements.append("VOID")
-	_check(model.researched_base_elements.size() == 1, "Research getter cannot bypass slot logic")
-	for element in ["WATER", "VOID"]:
-		request = model.request_research(element)
-		_check(model.start_element_research(element, request["ticket"]) == "committed", "Permanent research commits: " + element)
-	_check(model.researched_base_elements.size() == 3, "Three slots occupied")
-	_check(model.request_research("FIRE")["state"] == "slots_full", "Fourth request is rejected at model boundary")
-	_check(model.start_element_research("FIRE", 999) == "slots_full", "Bypassed UI and forged ticket still cannot add fourth element")
-	_check(model.acquire_clue("FIRE", "observation", "after_lock") == "recorded" and model.researched_base_elements.size() == 3, "Knowledge still allowed after permanent lock")
+	exposed_elements.append("FIRE")
+	_check(model.researched_base_elements.size() == 3, "Research getter cannot bypass slot constraints")
+	_check(model.request_research("FIRE")["state"] == "slots_full" and model.start_element_research("FIRE", 999) == "slots_full", "Fourth element rejected outside UI")
+	_check(model.acquire_clue("FIRE", "observation", "after_lock") == "recorded" and model.researched_base_elements.size() == 3, "Knowledge remains available at the three-slot lock")
 	var restored := Research.new()
-	_check(restored.load_data(model.to_data()).is_empty() and restored.to_data() == model.to_data(), "Research, affinity and clues round-trip independently")
+	_check(restored.load_data(model.to_data()).is_empty() and restored.to_data() == model.to_data(), "Roles, affinity and clues round-trip")
 	var before := model.to_data()
-	_check(not model.load_data({"researched_base_elements": ["WOOD", "FIRE", "EARTH", "METAL"]}).is_empty() and model.to_data() == before, "Invalid load does not truncate or mutate existing research")
+	_check(not model.load_data({"researched_base_elements": ["WOOD", "FIRE", "EARTH", "METAL"]}).is_empty() and model.to_data() == before, "Invalid load never truncates existing research")
 
 func _test_requirements() -> void:
 	var book := Book.new()
@@ -117,62 +103,47 @@ func _test_requirements() -> void:
 func _test_migration_and_ui() -> void:
 	var path := DIR + "legacy_" + serial + ".json"
 	var original := _fixture()
+	original["research"] = {"researched_base_elements": ["WOOD", "WATER", "VOID"], "innate_affinity": {}, "research_clues": [{"element": "FIRE", "source": "book", "id": "legacy_book"}], "extra": "keep"}
 	_write(path, original)
 	var original_bytes := FileAccess.get_file_as_bytes(path)
 	var game := _game(path)
 	_check(game.save_writable and game.magic_talent == 67 and game.body_talent == 34, "Legacy talents preserved without reroll")
-	_check(game.research.innate_affinity.is_empty() and game.research.researched_base_elements.is_empty(), "Legacy absent affinity stays unrecorded; research starts at zero")
+	_check(game.research.innate_affinity.is_empty() and game.research.main_attribute == null and game.research.researched_base_elements.size() == 3, "Legacy affinity stays unrecorded and locked choices get no guessed main")
 	_check(FileAccess.get_file_as_bytes(path + ".v0.bak") == original_bytes, "Migration backup preserves original bytes")
 	var migrated: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
 	var all_preserved := true
 	for key in original:
-		if not _json_equal(migrated[key], original[key]): all_preserved = false
-	_check(all_preserved and migrated["schema_version"] == Save.SCHEMA_VERSION, "All legacy and unknown fields preserved in versioned save")
-	_check(game._confirm_element_research("FIRE") == "confirmation_required", "Main API cannot commit without confirmation")
+		if key != "research" and not _json_equal(migrated[key], original[key]): all_preserved = false
+	_check(all_preserved and migrated["research"]["extra"] == "keep" and migrated["schema_version"] == Save.SCHEMA_VERSION, "Existing values and unknown fields preserved in current schema")
+	_check(game._confirm_element_research("FIRE") == "ritual_location_required", "Hub API cannot commit a research choice")
 	var ui = game.research_panel
 	ui.open()
 	ui.request("FIRE")
-	_check(ui.confirmation.visible and ui.confirmation.dialog_text.contains("영구") and game.research.researched_base_elements.is_empty(), "UI warns before any permanent mutation")
-	ui.confirmation.canceled.emit()
-	_check(game.research.researched_base_elements.is_empty(), "Dialog cancellation consumes no slot")
-	game._acquire_debug_clue("FIRE")
-	_check(game.research.researched_base_elements.is_empty() and game.research.research_clues.size() == 1, "UI book/clue action is saved without consuming a slot")
-	for element in ["WOOD", "WATER", "VOID"]:
-		ui.request(element)
-		if element == "VOID":
-			_check(ui.confirmation.dialog_text.contains("마지막 슬롯") and ui.confirmation.dialog_text.contains("다른 기본 속성"), "Third choice explicitly warns about locking every other element")
-		ui.confirmation.hide()
-		ui.confirmation.confirmed.emit()
-		_check(game.research.researched_base_elements.has(element), "Confirmed UI action commits and saves: " + element)
-	_check(ui.rows["FIRE"]["start"].disabled and ui.rows["WOOD"]["start"].disabled, "UI disables fourth and duplicate research choices")
+	_check(not ui.confirmation.visible and ui.rows["FIRE"]["start"].disabled, "Old selection UI cannot bypass awakening")
 	var chosen := game.research.to_data()
 	ui.close()
 	game._enter_dungeon("FIXED")
-	_check(not ui.opener.visible and not ui.is_open(), "Research UI is hub-only and does not overlay combat")
+	_check(not ui.opener.visible and not ui.is_open(), "Research status UI does not overlay combat")
 	game._die()
-	_check(game.research.to_data() == chosen and ui.opener.visible, "Death retains research/affinity/clues and restores hub UI")
+	_check(game.research.to_data() == chosen and ui.opener.visible, "Death retains permanent research and returns hub controls")
 	game.free()
 	game = _game(path)
-	_check(game.research.to_data() == chosen and game.magic_talent == 67 and game.learned_spells.has("custom_spell"), "New scene reload preserves permanent research and original talents/knowledge")
+	_check(game.research.to_data() == chosen and game.magic_talent == 67 and game.learned_spells.has("custom_spell"), "Reload preserves research, talents and discoveries")
 	_test_researched_combat(game)
+	var chant := game.chant_profile.to_data()
 	game.free()
-	# Fixture for a genuinely separate engine process, not just a second scene.
 	var restart_data := original.duplicate(true)
-	restart_data["schema_version"] = 1
+	restart_data["schema_version"] = Save.SCHEMA_VERSION
 	restart_data["research"] = chosen
 	restart_data["research"]["innate_affinity"] = {"WOOD": 23, "VOID": 87, "legacy_note": "retain"}
 	restart_data["research"]["unknown_research_field"] = {"keep": true}
+	restart_data["chant"] = chant
+	restart_data["laboratory"] = {"version": 1, "next_id": 1, "records": []}
 	_write(RESTART, restart_data)
 	game = _game(RESTART)
 	_check(game._save_character(), "Restart fixture is written through the real save system")
-	game.free()
-	# Failed save must not leave an unsaved permanent choice.
-	path = DIR + "failure_" + serial + ".json"
-	_write(path, original)
-	game = _game(path)
-	var request := game.research.request_research("FIRE")
 	game.save_path = DIR + "nonexistent_" + serial + "/save.json"
-	_check(game._confirm_element_research("FIRE", request["ticket"]) == "save_failed" and game.research.researched_base_elements.is_empty(), "Disk save failure rolls back research commitment")
+	_check(not game._save_character() and game.research.main_attribute == null, "Save failure cannot invent a main attribute")
 	game.free()
 
 func _event(game: Game, code: Key, pressed: bool, now: float) -> void:
@@ -270,5 +241,5 @@ func _verify_restart() -> void:
 	_check(_json_equal(game.research.innate_affinity, {"WOOD": 23, "VOID": 87, "legacy_note": "retain"}), "Separate process restores affinity verbatim without reroll")
 	_check(game.research.research_clues.size() == 1 and game.research.to_data()["unknown_research_field"] == {"keep": true}, "Separate process restores clues and unknown research fields")
 	_check(game.magic_talent == 67 and game.body_talent == 34 and game.bank_gold == 234 and _json_equal(game.corpse, _fixture()["corpse"]) and game.learned_spells.has("EMBER"), "Separate process preserves original character and corpse")
-	_check(game._confirm_element_research("FIRE", 123) == "slots_full" and game._save_character(), "Permanent lock remains enforced and saveable after restart")
+	_check(game.research.start_element_research("FIRE", 123) == "slots_full" and game._save_character(), "Permanent lock remains enforced and saveable after restart")
 	game.free()

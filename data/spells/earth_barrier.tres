@@ -1,0 +1,20 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+spell_id = &"EARTH_BARRIER"
+display_name = "돌 장벽"
+attribute = &"EARTH"
+requires_elements = PackedStringArray("EARTH")
+mana_cost = 16.0
+damage = 0.0
+effect = &"barrier"
+projectile_speed = 460.0
+lifetime = 1.8
+projectile_color = Color(0.68, 0.53, 0.32, 1)
+duration = 5.0
+radius = 22.0
+placement_distance = 95.0
+

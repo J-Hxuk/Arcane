@@ -22,8 +22,13 @@ func check(ok: bool, label: String) -> void:
 		failures += 1
 		push_error("FAIL: " + label)
 
-func equal(a: Variant, b: Variant) -> bool:
+static func equal(a: Variant, b: Variant) -> bool:
 	return JSON.parse_string(JSON.stringify(a)) == JSON.parse_string(JSON.stringify(b))
+
+static func permanent_equal(a: Dictionary, b: Dictionary) -> bool:
+	for field in ["main_attribute", "auxiliary_attributes", "legacy_committed_attributes", "innate_affinity"]:
+		if not equal(a.get(field), b.get(field)): return false
+	return true
 
 func fixture() -> Dictionary:
 	return {"schema_version": 1, "magic": 62, "body": 39, "bank": 432, "injury": 1, "armor": 81,
@@ -113,7 +118,7 @@ func _profile_and_simulator() -> void:
 	var failed := Sim.simulate(profile, inputs(path_for(profile, ["COMPRESS", "COMPRESS", "COMPRESS", "COMPRESS", "COMPRESS", "COMPRESS", "COMPRESS"], fire_word)))
 	check(failed["state"] == "failed", "Excessive instability produces deterministic collapse")
 	var other := Sim.simulate(profile, inputs(path_for(profile, ["ACCUMULATE", "COMPRESS", "STABILIZE", "RESONATE"], first_for(profile, "WATER"))))
-	check(other["state"] != "ready", "No six-element content expansion sneaks into the one-element prototype")
+	check(other["state"] != "ready", "Water requires additional resonance control under current six-element rules")
 	var repeated := Sim.simulate(profile, inputs([fire_word, first_for(profile, "WATER")]))
 	check(repeated["final_state"]["base_attributes"] == ["FIRE"], "Second attribute-shaped key is interpreted as a manipulation, not a new element")
 	var legacy := Sim.simulate(profile, inputs(["Q", "E"]), true)
@@ -175,8 +180,8 @@ func _integration() -> void:
 	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
 	var preserved := true
 	for key in original:
-		if key != "schema_version" and not equal(original[key], saved[key]): preserved = false
-	check(preserved and saved["schema_version"] == 2 and FileAccess.get_file_as_bytes(path + ".v1.bak") == bytes, "Phase 2A migration preserves all prior values and original v1 bytes")
+		if key not in ["schema_version", "research"] and not equal(original[key], saved[key]): preserved = false
+	check(preserved and saved["schema_version"] == Save.SCHEMA_VERSION and FileAccess.get_file_as_bytes(path + ".v1.bak") == bytes, "Prior scalar values and original v1 bytes are preserved during role migration")
 	var profile := game.chant_profile.to_data()
 	check(not profile.is_empty() and game.journal.records().is_empty(), "Missing chant/journal fields are initialized once")
 	var research := game.research.to_data()
@@ -191,7 +196,7 @@ func _integration() -> void:
 	_enter_keys(game, neutral)
 	var mana := game.player_mana
 	game._cast_spell()
-	check(game.player_mana == mana - 16.0 and game.journal.records().size() == 1 and game.missiles.size() == 1, "Lab personal bolt consumes actual mana, releases and auto-records")
+	check(game.player_mana == mana - 16.0 and game.journal.records().size() == 1 and game.laboratory_panel.arena.missiles.size() == 1, "Lab personal bolt consumes actual mana, releases in the safe arena and auto-records")
 	check(game.journal.records()[0]["steps"].size() == neutral.size() and game.journal.records()[0]["steps"][1]["input"]["hold_ms"] == 10, "Router captures real press ordering, elapsed time and release duration")
 	var before := [game.player_mana, game.exhaustion_seconds, game.research.to_data(), game.missiles.duplicate(true), game.journal.to_data()]
 	game.laboratory_panel.refresh()
@@ -223,7 +228,7 @@ func _integration() -> void:
 	var fire := path_for(game.chant_profile, ["ACCUMULATE", "COMPRESS", "STABILIZE", "RESONATE"], first_for(game.chant_profile, "FIRE"))
 	_enter_keys(game, fire)
 	game._cast_spell()
-	check(game.journal.records()[-1]["result"]["kind"] == "fire_resonance" and game.research.to_data() == research, "Even a successful unresearched FIRE experiment consumes no slot at the three-slot lock")
+	check(game.journal.records()[-1]["result"]["kind"] == "fire_resonance" and permanent_equal(game.research.to_data(), research), "Even a successful unresearched FIRE experiment consumes no slot at the three-slot lock")
 	game._leave_laboratory()
 	game._enter_dungeon("FIXED")
 	game.enemies.clear()
@@ -235,15 +240,17 @@ func _integration() -> void:
 	game._process(1.0)
 	_enter_keys(game, neutral)
 	game._cast_spell()
-	check(game.missiles.size() == 1 and game.research.to_data() == research, "Dungeon personal bolt uses the same final-state interpreter without changing slots")
+	check(game.missiles.size() == 1 and permanent_equal(game.research.to_data(), research), "Dungeon personal bolt uses the same final-state interpreter without changing slots")
 	game._die()
-	check(game.chant_profile.to_data() == profile and game.research.to_data() == research, "Death retains character mappings and permanent research")
+	check(game.chant_profile.to_data() == profile and permanent_equal(game.research.to_data(), research), "Death retains character mappings and permanent research")
 	var lab_data := game.journal.to_data()
+	research = game.research.to_data()
 	game.free()
 	game = game_at(path)
 	check(equal(game.chant_profile.to_data(), profile) and equal(game.journal.to_data(), lab_data) and equal(game.research.to_data(), research), "New scene load retains mappings, records, notes and original research")
 	var restart := fixture()
-	restart["schema_version"] = 2
+	restart["schema_version"] = Save.SCHEMA_VERSION
+	restart["research"] = research
 	restart["chant"] = profile
 	restart["laboratory"] = lab_data
 	write(RESTART, restart)
@@ -303,7 +310,7 @@ func _restart() -> void:
 	check(equal(game.chant_profile.to_data(), expected["chant"]), "Separate engine process preserves both stored mappings and seed/version")
 	check(equal(game.journal.to_data(), expected["laboratory"]), "Separate engine process preserves every step and player note")
 	check(equal(game.research.to_data(), expected["research"]) and game.magic_talent == 62 and game.body_talent == 39, "Separate engine process preserves Phase 2A talents and permanent slots")
-	check(game._confirm_element_research("FIRE", 99) == "slots_full", "Three-slot rule remains enforced after v2 restart")
+	check(game.research.start_element_research("FIRE", 99) == "slots_full", "Three-slot rule remains enforced after role-schema restart")
 	var first := first_for(game.chant_profile, "FIRE")
 	var result := Sim.simulate(game.chant_profile, inputs([first]))
 	check(result["kind"] == "none" and result["observation"] == "뚜렷한 변화가 관찰되지 않습니다.", "First-word non-disclosure also holds after restart")

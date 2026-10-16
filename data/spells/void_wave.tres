@@ -1,0 +1,21 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+spell_id = &"VOID_WAVE"
+display_name = "힘의 파동"
+attribute = &"VOID"
+requires_elements = PackedStringArray("VOID")
+mana_cost = 18.0
+damage = 16.0
+effect = &"shockwave"
+projectile_speed = 460.0
+lifetime = 1.8
+projectile_color = Color(0.75, 0.55, 1, 1)
+status_effect = &"stagger"
+duration = 0.65
+radius = 125.0
+knockback = 35.0
+

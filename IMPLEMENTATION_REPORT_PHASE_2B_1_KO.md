@@ -1,5 +1,7 @@
 # Phase 2B-1 개인 영창·마나 시뮬레이터·연구실 구현 보고서
 
+> 당시 구현 기록이다. 이후 사용자가 수동 테스트 8개 정상 통과를 확인했다. 현재 여섯 속성·최초 개화·저장 v3의 결과는 [Phase 2B-2 보고서](IMPLEMENTATION_REPORT_PHASE_2B_2_KO.md)를 따른다. 아래의 개화/난도 미구현 설명은 2B-1 당시 상태다.
+
 작업일: 2026-10-16 (한국 시간). 기준: `Arcane_Legacy_Magic_Research_Spec_v1_2.md`의 Phase 2B-1, 기존 GDD와 Phase 2A 데이터 보존 규칙.
 
 ## 분석과 범위 결정

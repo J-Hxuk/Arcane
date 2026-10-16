@@ -3,6 +3,7 @@ extends CanvasLayer
 
 signal commit_requested(element: String, ticket: int)
 signal clue_requested(element: String)
+signal laboratory_requested
 const BaseElements = preload("res://scripts/base_elements.gd")
 const CharacterResearch = preload("res://scripts/character_research.gd")
 var research: CharacterResearch
@@ -40,7 +41,7 @@ func setup(model: CharacterResearch) -> void:
 		theme.set_stylebox(state, "Button", style)
 	theme.set_color("font_disabled_color", "Button", Color("94a2b7"))
 	opener = Button.new()
-	opener.text = "[B] 속성 연구 / 디버그"
+	opener.text = "[B] 속성 연구 상태"
 	opener.position = Vector2(110, 476)
 	opener.theme = theme
 	opener.pressed.connect(open)
@@ -60,7 +61,7 @@ func setup(model: CharacterResearch) -> void:
 	summary = Label.new()
 	content.add_child(summary)
 	var help := Label.new()
-	help.text = "친화성과 연구 선택은 별개입니다. 열람·관찰·단서는 슬롯을 소모하지 않습니다.\n마력탄·일반 신체강화(속성 비의존 부여)는 無가 아니며 슬롯을 쓰지 않습니다."
+	help.text = "주속성은 연구실에서 단서·공명 재현·직접 개화 의식·최종 확인으로 확정합니다.\n열람·관찰·단서·기초 마력탄은 슬롯을 쓰지 않습니다. 보조속성 획득은 다음 단계입니다."
 	content.add_child(help)
 	for element in BaseElements.DEFINITIONS:
 		var definition = BaseElements.DEFINITIONS[element]
@@ -83,6 +84,10 @@ func setup(model: CharacterResearch) -> void:
 	feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	feedback.custom_minimum_size = Vector2(930, 48)
 	content.add_child(feedback)
+	var laboratory := Button.new()
+	laboratory.text = "연구실 / 서고로 이동"
+	laboratory.pressed.connect(func(): laboratory_requested.emit())
+	content.add_child(laboratory)
 	var close_button := Button.new()
 	close_button.text = "닫기 [B / Esc]"
 	close_button.pressed.connect(close)
@@ -120,13 +125,15 @@ func refresh() -> void:
 	for element in research.researched_base_elements:
 		chosen.append(BaseElements.DEFINITIONS[element].display_name)
 	summary.text = "확정 연구 %d / 3   %s" % [chosen.size(), "없음" if chosen.is_empty() else " · ".join(chosen)]
+	summary.text += "  | 주속성: " + ("미개화" if research.main_attribute == null else BaseElements.DEFINITIONS[research.main_attribute].display_name)
 	for element in rows:
 		var row: Dictionary = rows[element]
 		row["label"].text = "%s | %s | 친화성: 관찰 필요" % [row["definition"].display_name, row["definition"].domain]
 		var state := research.eligibility(element)
-		row["start"].text = {"available": "연구 선택…", "already_researched": "연구 확정됨", "slots_full": "3속성 잠금"}.get(state, state)
+		row["start"].text = {"awakening_required": "개화 의식 필요", "auxiliary_deferred": "보조 획득 보류", "already_researched": "기존 확정 연구", "slots_full": "3속성 잠금"}.get(state, state)
 		row["start"].disabled = not writable or state != "available"
-		row["clue"].disabled = not writable
+		row["clue"].text = "연구실 서고"
+		row["clue"].disabled = true
 	if not writable: feedback.text = "저장 파일 보호 모드: 연구 변경이 차단되었습니다. 원본을 확인하세요."
 
 func request(element: String) -> void:

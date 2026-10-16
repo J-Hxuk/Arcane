@@ -2,7 +2,7 @@ extends RefCounted
 ## Versionless v0 -> v1, preserving unknown fields and original bytes in a backup.
 ## Invalid/future saves are read-only: never silently replace a character.
 
-const SCHEMA_VERSION := 2
+const SCHEMA_VERSION := 3
 
 static func load_file(path: String) -> Dictionary:
 	if not FileAccess.file_exists(path):

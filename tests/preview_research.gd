@@ -2,6 +2,7 @@ extends SceneTree
 ## Real rendering and GUI input dispatch; no player save is opened.
 
 const SCENE = preload("res://scenes/main.tscn")
+const Flow = preload("res://tests/test_awakening.gd")
 const DIR := "res://.task002_artifacts/phase2a/"
 var game
 var checks := 0
@@ -38,25 +39,24 @@ func _run() -> void:
 	var ui = game.research_panel
 	_check(ui.is_open() and ui.summary.text.contains("0 / 3"), "Engine B input opens zero-slot research UI")
 	await _capture("research_zero")
-	await _click(ui.rows["FIRE"]["clue"])
-	_check(game.research.research_clues.size() == 1 and game.research.researched_base_elements.is_empty(), "GUI book click records a clue with zero slot use")
 	await _click(ui.rows["FIRE"]["start"])
-	_check(ui.confirmation.visible and game.research.researched_base_elements.is_empty(), "GUI research click opens confirmation without committing")
-	await _capture("research_confirm")
-	await _click(ui.confirmation.get_cancel_button())
-	_check(not ui.confirmation.visible and game.research.researched_base_elements.is_empty(), "GUI Cancel leaves permanent choices empty")
-	for element in ["WOOD", "WATER", "VOID"]:
-		await _click(ui.rows[element]["start"])
-		if element == "VOID":
-			_check(ui.confirmation.dialog_text.contains("마지막 슬롯"), "Real third-slot dialog warns about permanent lock")
-			await _capture("research_third_warning")
-		await _click(ui.confirmation.get_ok_button())
-		_check(game.research.researched_base_elements.has(element), "GUI Confirm commits: " + element)
+	_check(not ui.confirmation.visible and game.research.researched_base_elements.is_empty(), "Old direct-confirm button cannot bypass awakening")
+	await _key(KEY_B)
+	game.free()
+	# Pre-existing 3-slot fixture; no new auxiliary acquisition in Phase 2B-2.
+	Flow.write(path, Flow.seeded_fixture(["WOOD", "WATER", "VOID"]))
+	game = SCENE.instantiate()
+	game.save_path = path
+	root.add_child(game)
+	game.set_process(false)
+	await _key(KEY_B)
+	ui = game.research_panel
+	_check(ui.is_open() and ui.summary.text.contains("3 / 3") and game.research.main_attribute == null, "Existing three slots remain visible without an inferred main")
 	await _capture("research_three")
 	await _click(ui.rows["FIRE"]["start"])
 	_check(not ui.confirmation.visible and game.research.researched_base_elements.size() == 3, "Disabled fourth-element GUI button cannot open or commit")
 	await _key(KEY_B)
-	_check(not ui.is_open(), "B closes debug panel")
+	_check(not ui.is_open(), "B closes research status panel")
 	await _key(KEY_1)
 	_check(game.game_state == "DUNGEON" and not ui.opener.visible, "Existing dungeon key still works after research UI closes")
 	await _capture("research_dungeon")

@@ -1,0 +1,25 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+spell_id = &"FIRE_LANCE"
+display_name = "화염창"
+attribute = &"FIRE"
+requires_elements = PackedStringArray("FIRE")
+research_tier = 2
+min_mana = 20.0
+min_cohesion = 75.0
+min_resonance = 50.0
+min_stability = 65.0
+mana_cost = 25.0
+damage = 42.0
+effect = &"projectile"
+projectile_speed = 700.0
+lifetime = 1.5
+projectile_color = Color(1, 0.6, 0.25, 1)
+status_effect = &"burn"
+duration = 2.0
+damage_per_second = 5.0
+pierce_targets = 3

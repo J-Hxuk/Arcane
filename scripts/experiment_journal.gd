@@ -43,15 +43,28 @@ func to_data() -> Dictionary:
 func records() -> Array:
 	return _data["records"].duplicate(true)
 
+func mark_manifestation(id: int, manifestation: Dictionary) -> void:
+	for record in _data["records"]:
+		if record["id"] != id: continue
+		var result: Dictionary = record["result"]
+		result["manifestation"] = manifestation.duplicate(true)
+		result["simulation_stage"] = result.get("response_stage", "")
+		result["response_stage"] = "manifested"
+		result["failure_step"] = 0
+		result["failure_kind"] = "none"
+		return
+
 func append(result: Dictionary, outcome: String, spent: float, elapsed_ms: int, profile_version: int) -> int:
 	var id := int(_data["next_id"])
 	var terminal: Dictionary = result["final_state"].duplicate(true)
 	terminal["phase"] = "CANCEL" if outcome == "cancelled" else ("RELEASE" if outcome == "released" else "FAILED")
 	_data["records"].append({"id": id, "steps": result["casting_steps"].duplicate(true),
-		"result": {"outcome": outcome, "kind": result["kind"], "observation": result["observation"],
-			"failure_step": 0 if outcome == "cancelled" else result["failure_step"], "energy_spent": spent, "elapsed_ms": elapsed_ms,
+		"result": {"outcome": outcome, "kind": result["kind"], "observation": result["observation"], "response_stage": result["state"],
+			"failure_step": 0 if outcome == "cancelled" else result["failure_step"],
+			"failure_kind": "none" if outcome == "cancelled" else result.get("failure_kind", "legacy"), "energy_spent": spent, "elapsed_ms": elapsed_ms,
 			"terminal_snapshot": terminal},
-		"rules_version": result["rules_version"], "profile_version": profile_version, "note": ""})
+		"rules_version": result["rules_version"], "profile_version": profile_version, "note": "",
+		"simulation_context": result.get("simulation_context", {}).duplicate(true)})
 	_data["next_id"] = id + 1
 	return id
 

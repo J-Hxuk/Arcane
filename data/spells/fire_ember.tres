@@ -1,0 +1,20 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/spell_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+spell_id = &"FIRE_EMBER"
+display_name = "불씨 탄"
+attribute = &"FIRE"
+requires_elements = PackedStringArray("FIRE")
+mana_cost = 14.0
+damage = 18.0
+effect = &"projectile"
+projectile_speed = 410.0
+lifetime = 1.8
+projectile_color = Color(1, 0.45, 0.15, 1)
+status_effect = &"burn"
+duration = 3.0
+damage_per_second = 7.0
+
