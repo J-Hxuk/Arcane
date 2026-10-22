@@ -5,14 +5,19 @@
 [resource]
 script = ExtResource("1")
 spell_id = &"WATER_PUSH"
-display_name = "밀물 탄"
+display_name = "Tidebolt"
 attribute = &"WATER"
 requires_elements = PackedStringArray("WATER")
-mana_cost = 13.0
-damage = 10.0
+min_cohesion = 0.0
+min_form = 0.0
+mana_cost = 9.0
+damage = 12.0
 effect = &"projectile"
 projectile_speed = 420.0
+projectile_radius = 9.0
 lifetime = 1.8
 projectile_color = Color(0.25, 0.65, 1, 1)
-knockback = 100.0
+knockback = 135.0
+status_effect = &"stagger"
+duration = 0.45
 

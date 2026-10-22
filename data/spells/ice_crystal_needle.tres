@@ -1,0 +1,21 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/spell_definition.gd" id="1"]
+[resource]
+script = ExtResource("1")
+spell_id = &"ICE_CRYSTAL_NEEDLE"
+display_name = "ICE_CRYSTAL_NEEDLE"
+requires_elements = PackedStringArray("METAL", "WATER")
+phenomenon = &"ice_crystal"
+visual_style = &"ICE_CRYSTAL"
+combat_rank = 1
+min_binding_quality = 60.0
+min_cohesion = 0.0
+min_form = 0.0
+max_form = 99.0
+min_stability = 55.0
+mana_cost = 20.0
+damage = 22.0
+projectile_speed = 520.0
+projectile_color = Color(0.65, 0.9, 1, 1)
+status_effect = &"crystal"
+duration = 0.9

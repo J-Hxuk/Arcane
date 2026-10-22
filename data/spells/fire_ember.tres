@@ -5,9 +5,11 @@
 [resource]
 script = ExtResource("1")
 spell_id = &"FIRE_EMBER"
-display_name = "불씨 탄"
+display_name = "Emberbolt"
 attribute = &"FIRE"
 requires_elements = PackedStringArray("FIRE")
+min_cohesion = 0.0
+min_form = 0.0
 mana_cost = 14.0
 damage = 18.0
 effect = &"projectile"

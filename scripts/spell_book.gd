@@ -33,4 +33,4 @@ func inspect(tokens: Array[String], researched_elements: PackedStringArray = Pac
 		return {"state": "ready", "message": definition.display_name + " ready. LMB to release.", "spell": definition}
 	if prefix_found:
 		return {"state": "incomplete", "message": "Incomplete formula after command %d. Continue entering commands." % tokens.size()}
-	return {"state": "invalid", "message": "No formula matches command %d (%s). RMB / Esc to clear." % [best_prefix + 1, tokens[best_prefix]]}
+	return {"state": "invalid", "message": "No formula matches command %d (%s). Esc to clear." % [best_prefix + 1, tokens[best_prefix]]}

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/spell_definition.gd" id="1"]
+[resource]
+script = ExtResource("1")
+spell_id = &"ICE_CRYSTAL_BARRIER"
+display_name = "ICE_CRYSTAL_BARRIER"
+requires_elements = PackedStringArray("METAL", "WATER")
+phenomenon = &"ice_crystal"
+visual_style = &"ICE_CRYSTAL"
+combat_rank = 2
+min_binding_quality = 60.0
+min_cohesion = 0.0
+min_form = 100.0
+min_stability = 55.0
+mana_cost = 26.0
+damage = 0.0
+effect = &"barrier"
+radius = 28.0
+duration = 6.0
+placement_distance = 95.0
+projectile_color = Color(0.65, 0.9, 1, 1)

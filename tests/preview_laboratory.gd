@@ -52,7 +52,8 @@ func _run() -> void:
 	check(game.runes == [fire] and ui.live.text.contains("뚜렷한 변화가 관찰되지"), "Single real attribute key shows no completed or affinity response")
 	await _capture("lab_first_word")
 	await _key(KEY_SHIFT, false)
-	check(game.journal.records().size() == 1 and game.journal.records()[0]["result"]["outcome"] == "cancelled", "Leaving mobile mode auto-records the unfinished experiment")
+	check(game.journal.records().size() == 1 and game.journal.records()[0]["result"]["outcome"] == "failed", "Shift release submits the unfinished experiment once as a failed observation")
+	await _click(ui.recover_button) # A submitted failure can now cause instability.
 	await _chant(Helper.path_for(game.chant_profile, ["ACCUMULATE", "COMPRESS", "SHAPE", "DIRECT", "STABILIZE"]))
 	await _click(ui.release_button)
 	check(ui.arena.missiles.size() == 1 and game.journal.records().size() == 2, "Real personal chant and release button create a safe-arena bolt and automatic record")
@@ -133,6 +134,29 @@ func _key(code: Key, pressed: bool) -> void:
 	await process_frame
 
 func _click(control: Control) -> void:
+	var ancestor := control.get_parent()
+	while ancestor != null:
+		if ancestor is ScrollContainer:
+			ancestor.ensure_control_visible(control); await process_frame; await process_frame
+			break
+		ancestor = ancestor.get_parent()
+	# Historical tests now use the public Shift-up / focus LMB controls.
+	if control == game.laboratory_panel.release_button or control == game.laboratory_panel.trial_release_button:
+		var ui = game.laboratory_panel
+		if game.combat_input.mode == game.CombatInput.Mode.FOCUS_CAST:
+			ui.show_trial(false); await process_frame
+		if ui.trial_panel.visible:
+			var point: Vector2 = ui.arena.world_to_screen(ui.arena.player_pos+Vector2(160,0))
+			Input.warp_mouse(point); await process_frame
+			var motion := InputEventMouseMotion.new(); motion.position=point; motion.global_position=point
+			Input.parse_input_event(motion); await process_frame
+		if game.combat_input.mode == game.CombatInput.Mode.FOCUS_CAST:
+			var event := InputEventMouseButton.new(); event.button_index=MOUSE_BUTTON_LEFT
+			event.position=ui.arena.world_to_screen(ui.arena.player_pos+Vector2(160,0)); event.global_position=event.position; event.pressed=true
+			Input.parse_input_event(event); await process_frame
+			event.pressed=false; Input.parse_input_event(event); await process_frame
+		else: await _key(KEY_SHIFT,false)
+		return
 	await process_frame
 	var point := control.get_global_rect().get_center()
 	var motion := InputEventMouseMotion.new()

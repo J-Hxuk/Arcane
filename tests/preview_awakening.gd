@@ -43,7 +43,7 @@ func _run() -> void:
 	await _click(study.book_button)
 	await _click(study.mentor_button)
 	check(game.research.has_clue("EARTH", "book") and game.research.has_clue("EARTH", "mentor") and game.research.researched_base_elements.is_empty(), "Both GUI clue sources save independently without occupying slots")
-	check(study.journal_view.text.contains("중심") and study.journal_view.text.contains("서적") and study.journal_view.text.contains("스승"), "Collected clues are readable in the research journal")
+	check(not study.journal_view.visible and game.research.research_clues.size()>0, "Collected clue data survives with duplicate public list hidden")
 	await _capture("awakening_clues")
 	await _click(study.back_button)
 	await _key(KEY_SHIFT, true)
@@ -61,7 +61,7 @@ func _run() -> void:
 	await _click(lab.next_buttons[0])
 	check(game.player_mana == mana and game.journal.records().size() == record_count, "Actual replay control remains read-only after discoveries")
 	await _click(lab.research_button)
-	check(not study.ritual_button.disabled and study.progress.text.contains("2 / 2"), "GUI shows readiness only after clues and stable reproduction")
+	check(not study.ritual_button.disabled and study.progress.text.contains("현재 2회 / 최소 1회"), "GUI distinguishes actual evidence count from the named one-experiment requirement")
 	await _click(study.ritual_button)
 	check(not study.visible and game.research.ritual_target == "EARTH", "Ritual button only starts a session; it does not auto-cast")
 	await _chant(Flow.sequence(game.chant_profile, "EARTH", true))
@@ -133,9 +133,34 @@ func _key(code: Key, pressed: bool) -> void:
 	await process_frame
 
 func _click(control: Control) -> void:
+	var ancestor := control.get_parent()
+	while ancestor != null:
+		if ancestor is ScrollContainer:
+			ancestor.ensure_control_visible(control); await process_frame; await process_frame
+			break
+		ancestor = ancestor.get_parent()
+	# Historical tests now use the public Shift-up / focus LMB controls.
+	if control == game.laboratory_panel.release_button or control == game.laboratory_panel.trial_release_button:
+		var ui = game.laboratory_panel
+		if game.combat_input.mode == game.CombatInput.Mode.FOCUS_CAST:
+			ui.show_trial(false); await process_frame
+		if ui.trial_panel.visible:
+			var point: Vector2 = ui.arena.world_to_screen(ui.arena.player_pos+Vector2(160,0))
+			Input.warp_mouse(point); await process_frame
+			var motion := InputEventMouseMotion.new(); motion.position=point; motion.global_position=point
+			Input.parse_input_event(motion); await process_frame
+		if game.combat_input.mode == game.CombatInput.Mode.FOCUS_CAST:
+			var event := InputEventMouseButton.new(); event.button_index=MOUSE_BUTTON_LEFT
+			event.position=ui.arena.world_to_screen(ui.arena.player_pos+Vector2(160,0)); event.global_position=event.position; event.pressed=true
+			Input.parse_input_event(event); await process_frame
+			event.pressed=false; Input.parse_input_event(event); await process_frame
+		else: await _key(KEY_SHIFT,false)
+		return
 	await process_frame
 	var point := control.get_global_rect().get_center()
 	if control.get_window() != root: point += Vector2(control.get_window().position)
+	Input.warp_mouse(point)
+	await process_frame
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	root.push_input(motion, true)

@@ -3,8 +3,9 @@ extends RefCounted
 const Profile = preload("res://scripts/chant_profile.gd")
 var _data := {"version": 1, "spells": {}}
 
-static func valid_inputs(inputs: Variant) -> bool:
+static func valid_inputs(inputs: Variant,rules_version:=0) -> bool:
 	if not inputs is Array or inputs.is_empty() or inputs.size() > 32: return false
+	if rules_version>=8 and inputs.size()>5:return false
 	var previous := -1.0
 	for input in inputs:
 		if not input is Dictionary or input.get("key") not in Profile.MOBILE_KEYS + Profile.FOCUS_KEYS: return false
@@ -13,7 +14,7 @@ static func valid_inputs(inputs: Variant) -> bool:
 			if not (value is int or value is float) or not is_finite(float(value)) or value != int(value) or value < 0 or value > 60000: return false
 		if input["at_ms"] < previous: return false
 		previous = input["at_ms"]
-	return inputs[0]["key"] in Profile.ATTRIBUTE_KEYS + ["C"]
+	return true if rules_version>=8 else inputs[0]["key"] in Profile.ATTRIBUTE_KEYS + ["C"]
 
 func load_data(data: Dictionary) -> String:
 	if data.get("version", 1) != 1 or not data.get("spells", {}) is Dictionary: return "Invalid discovered spell book."
@@ -24,7 +25,11 @@ func load_data(data: Dictionary) -> String:
 		var representative = entry.get("representative", 0)
 		if recipes.is_empty() or not (representative is int or representative is float) or not is_finite(float(representative)) or representative != int(representative) or representative < 0 or representative >= recipes.size(): return "Invalid representative chant."
 		for recipe in recipes:
-			if not recipe is Dictionary or not valid_inputs(recipe.get("inputs")): return "Invalid successful chant timing."
+			if not recipe is Dictionary or not valid_inputs(recipe.get("inputs"),int(recipe.get("rules_version",0))): return "Invalid successful chant timing."
+			if recipe.has("profile"):
+				if not recipe.profile is Dictionary:return "Invalid prototype mapping."
+				var mapping:=Profile.new()
+				if not mapping.load_data(recipe.profile).is_empty():return "Invalid prototype mapping."
 	_data = data.duplicate(true)
 	_data.merge({"version": 1, "spells": data.get("spells", {}).duplicate(true)}, true)
 	for entry in _data["spells"].values():
@@ -43,14 +48,16 @@ static func signature(inputs: Array) -> String:
 		last_end = maxi(last_end, int(input["at_ms"] + input["hold_ms"]))
 	return JSON.stringify(result)
 
-func record(id: String, name: String, inputs: Array, rules_version: int, source: String) -> bool:
-	if id.is_empty() or name.is_empty() or not valid_inputs(inputs): return false
+func record(id: String, name: String, inputs: Array, rules_version: int, source: String, base_elements: Array = [],grammar_profile:Dictionary={}) -> bool:
+	if id.is_empty() or name.is_empty() or not valid_inputs(inputs,rules_version): return false
 	var spells: Dictionary = _data["spells"]
 	if not spells.has(id): spells[id] = {"name": name, "favorite": false, "representative": 0, "recipes": []}
+	if base_elements.size() > 1: spells[id]["base_elements"] = base_elements.duplicate()
 	var recipes: Array = spells[id]["recipes"]
 	for recipe in recipes:
-		if signature(recipe["inputs"]) == signature(inputs): return false
+		if (int(recipe.get("rules_version",0))>=8)==(rules_version>=8) and signature(recipe["inputs"]) == signature(inputs): return false
 	recipes.append({"inputs": inputs.duplicate(true), "rules_version": rules_version, "source": source})
+	if rules_version>=8:recipes.back()["profile"]=grammar_profile.duplicate(true)
 	return true
 
 func import_journal(records: Array) -> void:
@@ -63,13 +70,14 @@ func import_journal(records: Array) -> void:
 		if manifestation.is_empty(): continue
 		var inputs: Array = []
 		for step in experiment["steps"]: inputs.append(step["input"].duplicate(true))
-		record(str(manifestation.get("spell_id", "")), str(manifestation.get("name", "")), inputs, int(experiment.get("rules_version", 1)), "journal")
+		record(str(manifestation.get("spell_id", "")), str(manifestation.get("name", "")), inputs, int(experiment.get("rules_version", 1)), "journal",manifestation.get("base_elements",[]),experiment.get("grammar_profile",{}))
 
 func entries() -> Array:
 	var result: Array = []
 	for id in _data["spells"]:
 		var entry: Dictionary = _data["spells"][id].duplicate(true)
 		entry["spell_id"] = id
+		entry["name"] = preload("res://scripts/spell_names.gd").label(id,entry["name"])
 		result.append(entry)
 	result.sort_custom(func(a, b):
 		if a["favorite"] != b["favorite"]: return a["favorite"]

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "status": "initial_playtest_balance",
+  "maximum_mana_fraction": 0.30,
+  "maximum_speed_reduction": 0.50,
+  "blur_start": 0.075,
+  "blur_maximum": 0.50,
+  "blur_radius_px": 4.5,
+  "blur_minimum_radius_px": 1.5,
+  "edge_extra_radius_px": 4.0,
+  "edge_vignette_maximum": 0.28,
+  "entry_edge_warning": 0.18,
+  "entry_tint_multiplier": 1.4,
+  "entry_warning_seconds": 0.45,
+  "visual_rise_seconds": 0.14,
+  "visual_recovery_seconds": 0.20,
+  "warning_rearm_seconds": 0.20
+}

@@ -9,6 +9,7 @@ const Helper = preload("res://tests/test_chant.gd")
 const Awakening = preload("res://tests/test_awakening.gd")
 const DIR := "res://.task002_artifacts/phase2b25/"
 const ACTIONS := Awakening.RITUAL_ACTIONS
+const Dev=preload("res://scripts/developer_test_data.gd")
 var checks := 0
 var failures := 0
 var serial := str(Time.get_ticks_usec())
@@ -31,7 +32,7 @@ static func fixture(element: Variant, seed_value := 8431) -> Dictionary:
 			"innate_affinity": {"FIRE": 85, "WOOD": 25}, "research_clues": [], "resonance_discoveries": {}}}
 
 static func keys_for(game, element: String) -> Array:
-	return Helper.path_for(game.chant_profile, ACTIONS, Helper.first_for(game.chant_profile, element))
+	return Helper.path_for(game.chant_profile, Dev.basic_actions(element) if element!="VOID" else ACTIONS, Helper.first_for(game.chant_profile, element))
 
 func game_at(element: Variant):
 	var path := DIR + serial + "_" + ("unawakened" if element == null else str(element)) + ".json"
@@ -51,7 +52,7 @@ static func reset_arena(game) -> void:
 	game.enemies.clear()
 	game.walls.clear()
 	game.player_pos = Vector2(300, 300)
-	game.player_mana = 100.0
+	game.player_mana = 100.0;game.mana_debt=0.0
 	game.player_hp = 100.0
 	game.exhaustion_seconds = 0.0
 	game.game_state = "DUNGEON"
@@ -81,16 +82,17 @@ func _laws() -> void:
 			var profile := Profile.new()
 			profile.load_data(Profile.generate(seed_value))
 			var first := Helper.first_for(profile, element)
-			var sequence := Helper.path_for(profile, ACTIONS, first)
+			var actions:Array=Dev.basic_actions(element) if element!="VOID" else ACTIONS
+			var sequence := Helper.path_for(profile, actions, first)
 			var simulation := Sim.simulate(profile, Helper.inputs(sequence), true)
 			var result := Resolver.resolve(simulation, element)
-			mapping_independent = mapping_independent and result.get("spell") == definition and result["state"] == "ready"
-			var alternate := ACTIONS.duplicate()
-			alternate.erase("SHAPE")
-			alternate.insert(2, "SHAPE")
+			mapping_independent = mapping_independent and result.get("spell")!=null and result["spell"].spell_id==definition.spell_id and result["state"] == "ready"
+			var alternate := actions.duplicate()
+			var swap_index:=1 if element=="FIRE" else 0
+			var first_action=alternate[swap_index];alternate[swap_index]=alternate[swap_index+1];alternate[swap_index+1]=first_action
 			var other := Sim.simulate(profile, Helper.inputs(Helper.path_for(profile, alternate, first)), true)
 			var other_result := Resolver.resolve(other, element)
-			same_state = same_state and other["final_state"] == simulation["final_state"] and other_result.get("spell") == definition
+			same_state = same_state and other["final_state"] == simulation["final_state"] and other_result.get("spell")!=null and result["spell"].spell_id==definition.spell_id
 			guards = guards and Resolver.resolve(simulation, null)["state"] == "locked"
 			var weak := Sim.simulate(profile, Helper.inputs([first]), true)
 			guards = guards and not Resolver.resolve(weak, element).has("spell")
@@ -102,13 +104,13 @@ func _laws() -> void:
 	profile.load_data(Profile.generate(71))
 	var pure := Sim.simulate(profile, Helper.inputs(["Q", "E"]), true)
 	check(pure["kind"] == "mana_bolt" and pure["final_state"]["base_attributes"].is_empty(), "Pure mana and VOID remain distinct")
-	var inputs := Helper.inputs(Helper.path_for(profile, ACTIONS, Helper.first_for(profile, "WATER")))
+	var inputs := Helper.inputs(Helper.path_for(profile, Dev.basic_actions("WATER"), Helper.first_for(profile, "WATER")))
 	var water := Sim.simulate(profile, inputs)
 	check(Resolver.resolve(water, "FIRE")["state"] == "locked", "Other main attribute cannot authorize WATER")
 	var costly_inputs := inputs.duplicate(true)
 	costly_inputs.append({"key": Helper.key_for(profile, "COMPRESS"), "at_ms": 4000, "hold_ms": 0})
 	var costly := Resolver.resolve(Sim.simulate(profile, costly_inputs), "WATER")
-	check(costly.get("spell") == Resolver.DEFINITIONS["WATER"] and costly["mana_cost"] > Resolver.resolve(water, "WATER")["mana_cost"], "Actual manipulation loss adds to data-defined base mana cost")
+	check(costly.get("spell") != null and costly["spell"].catalog_id == &"OH-061" and costly["mana_cost"] == costly["spell"].mana_cost + 1.0, "A fully resonant Tidebolt keeps its identity and both compressions add their actual mana loss")
 
 func _access_and_integration() -> void:
 	for element in Profile.ELEMENTS:
@@ -117,17 +119,17 @@ func _access_and_integration() -> void:
 		var profile: Dictionary = game.chant_profile.to_data()
 		Awakening.enter_keys(game, keys_for(game, element))
 		var result: Dictionary = game._inspect_chant(true)
-		check(result["state"] == "ready" and result.get("spell") == Resolver.DEFINITIONS[element], element + " real Main mobile chant resolves")
+		check(result["state"] == "ready" and result.get("spell")!=null and result["spell"].spell_id==Resolver.DEFINITIONS[element].spell_id, element + " real Main mobile chant resolves")
 		# Barrier creation needs open forward space. All aim directions here are open.
 		var mana: float = game.player_mana
 		game._cast_spell()
 		var spawned: bool = game.missiles.size() == 1 or game.elemental_combat.barriers.size() == 1 or game.elemental_combat.visuals.size() == 1
 		check(spawned and game.runes.is_empty() and game.player_mana == mana - result["mana_cost"], element + " real release spawns effect and charges data cost")
 		check(game.research.to_data() == permanent and game.chant_profile.to_data() == profile, element + " cast preserves permanent main/affinity/mapping")
-		var saved := Save.load_file(game.save_path)
+		var saved := Save.load_file(game.save_path,false) # Archived declaration-based scene uses the compatibility adapter.
 		check(Helper.equal(saved["data"]["research"], permanent) and Helper.equal(saved["data"]["chant"], profile) and saved["data"]["unknown"]["preserve"], element + " discovery save preserves character and unknown data")
 		reset_arena(game)
-		game.player_mana = 0.0
+		game.player_mana = 0; game.mana_debt=game.ManaOverdraw.limit(game._max_mana())
 		Awakening.enter_keys(game, keys_for(game, element))
 		game._cast_spell()
 		check(game.missiles.is_empty() and game.elemental_combat.barriers.is_empty() and game.elemental_combat.visuals.is_empty() and not game.runes.is_empty(), element + " insufficient mana emits no effect")
@@ -143,7 +145,7 @@ func _access_and_integration() -> void:
 	check(game.player_mana == 100.0 and game.missiles.is_empty() and game._inspect_chant()["state"] == "locked", "Direct non-UI call cannot cast an unawakened attribute")
 	game.game_state = "HUB"
 	game._enter_laboratory()
-	Awakening.enter_keys(game, keys_for(game, "FIRE"))
+	Awakening.enter_keys(game, Awakening.sequence(game.chant_profile,"FIRE"))
 	game._cast_spell()
 	check(game.research.stable_count("FIRE") == 1 and game.research.main_attribute == null and game.missiles.is_empty() and game.journal.records()[-1]["result"]["kind"] == "fire_resonance", "Laboratory keeps six-element experimentation and awakening evidence, without combat execution")
 	game.free()
@@ -165,7 +167,7 @@ func _awakening_to_combat() -> void:
 		Awakening.enter_keys(game, Awakening.sequence(game.chant_profile, "WATER"))
 		game._cast_spell()
 	check(game._begin_awakening("WATER") == "ritual_started", "Real WATER flow can begin ritual after two experiments")
-	Awakening.enter_keys(game, keys_for(game, "WATER"))
+	Awakening.enter_keys(game, Awakening.sequence(game.chant_profile,"WATER",true))
 	game._cast_spell()
 	check(game.research.awakening_state == "confirmation_pending", "New combat extension preserves the actual awakening confirmation")
 	var ticket: int = game.pending_awakening_offer.get("ticket", 0)
@@ -197,7 +199,7 @@ func _effects() -> void:
 	check(game.enemies[0]["hp"] == 61.0 and game.enemies[0]["burn_remaining"] == 0.0, "FIRE burn is capped to its remaining duration on a long frame")
 	reset_arena(game)
 	game.enemies.append(target(Vector2(380, 300)))
-	runtime.cast(game, Resolver.DEFINITIONS["WOOD"], Vector2.RIGHT)
+	game.research.load_data({"main_attribute":"WOOD"});runtime.cast(game, Resolver.DEFINITIONS["WOOD"], Vector2.RIGHT)
 	game._update_missiles(0.25, 1.0)
 	var position: Vector2 = game.enemies[0]["pos"]
 	game._update_enemies(0.5)
@@ -206,6 +208,7 @@ func _effects() -> void:
 	game._update_enemies(0.1)
 	check(game.enemies[0]["pos"] != position, "WOOD enemy movement resumes after root expiration")
 	reset_arena(game)
+	game.research.load_data({"main_attribute":"EARTH"})
 	check(runtime.cast(game, Resolver.DEFINITIONS["EARTH"], Vector2.RIGHT), "EARTH creates an obstacle in open aimed space")
 	var barrier: Vector2 = runtime.barriers[0]["pos"]
 	game._try_move_player(Vector2(200, 0))
@@ -223,31 +226,33 @@ func _effects() -> void:
 	check(runtime.barriers.is_empty() and not game._is_blocked(barrier), "EARTH expires and restores walkable space")
 	reset_arena(game)
 	game.enemies.append(target(Vector2(395, 300)))
+	game.research.load_data({"main_attribute":"EARTH"})
 	check(not runtime.cast(game, Resolver.DEFINITIONS["EARTH"], Vector2.RIGHT) and runtime.barriers.is_empty(), "EARTH refuses actor overlap")
 	reset_arena(game)
 	game.walls.append(Vector2i(7, 4)) # x376..416 y264..304, on the aimed path.
+	game.research.load_data({"main_attribute":"EARTH"})
 	check(not runtime.cast(game, Resolver.DEFINITIONS["EARTH"], Vector2.RIGHT), "EARTH refuses terrain overlap/placement through walls")
 	reset_arena(game)
 	for x in [365, 425, 485, 545]: game.enemies.append(target(Vector2(x, 300)))
-	runtime.cast(game, Resolver.DEFINITIONS["METAL"], Vector2.RIGHT)
+	game.research.load_data({"main_attribute":"METAL"});runtime.cast(game, Resolver.DEFINITIONS["METAL"], Vector2.RIGHT)
 	game._update_missiles(0.5, 1.0)
 	check(game.enemies[0]["hp"] == 76.0 and game.enemies[1]["hp"] == 76.0 and game.enemies[2]["hp"] == 76.0 and game.enemies[3]["hp"] == 100.0, "METAL pierces exactly three distinct enemies in one swept flight")
 	reset_arena(game)
 	game.enemies.append(target(Vector2(380, 300)))
-	runtime.cast(game, Resolver.DEFINITIONS["METAL"], Vector2.RIGHT)
+	game.research.load_data({"main_attribute":"METAL"});runtime.cast(game, Resolver.DEFINITIONS["METAL"], Vector2.RIGHT)
 	game._update_missiles(0.1, 1.0)
 	game._update_missiles(0.02, 1.0)
 	game._update_missiles(0.02, 1.0)
 	check(game.enemies[0]["hp"] == 76.0, "METAL never repeatedly damages the same enemy across flight frames")
 	reset_arena(game)
 	game.enemies.append(target(Vector2(380, 300)))
-	runtime.cast(game, Resolver.DEFINITIONS["WATER"], Vector2.RIGHT)
+	game.research.load_data({"main_attribute":"WATER"});runtime.cast(game, Resolver.DEFINITIONS["WATER"], Vector2.RIGHT)
 	game._update_missiles(0.25, 1.0)
-	check(game.enemies[0]["pos"].x == 480.0 and game.enemies[0]["hp"] == 90.0, "WATER moves its hit target 100 units with lower impact damage")
+	check(is_equal_approx(game.enemies[0]["pos"].x, 515.0) and game.enemies[0]["hp"] == 88.0 and is_equal_approx(game.enemies[0].get("stagger_remaining", 0.0), 0.45), "WATER deals 12, pushes 135 and briefly interrupts the target")
 	reset_arena(game)
 	game.enemies.append(target(Vector2(350, 300)))
 	game.walls.append(Vector2i(7, 4))
-	runtime.cast(game, Resolver.DEFINITIONS["WATER"], Vector2.RIGHT)
+	game.research.load_data({"main_attribute":"WATER"});runtime.cast(game, Resolver.DEFINITIONS["WATER"], Vector2.RIGHT)
 	game._update_missiles(0.2, 1.0)
 	check(game.enemies[0]["pos"].x <= 361.0 and not game._is_blocked(game.enemies[0]["pos"], 15.0), "WATER knockback cannot pass through terrain")
 	reset_arena(game)
@@ -267,13 +272,13 @@ func _effects() -> void:
 	runtime.cast(game, Resolver.DEFINITIONS["VOID"], Vector2.RIGHT)
 	check(game.enemies[0]["hp"] == 100.0, "VOID shockwave respects terrain occlusion")
 	reset_arena(game)
-	runtime.cast(game, Resolver.DEFINITIONS["EARTH"], Vector2.RIGHT)
+	game.research.load_data({"main_attribute":"EARTH"});runtime.cast(game, Resolver.DEFINITIONS["EARTH"], Vector2.RIGHT)
 	game.player_pos = game.EXIT_POS
 	game._interact()
 	check(runtime.barriers.is_empty() and runtime.visuals.is_empty(), "Dungeon exit clears temporary effects")
 	game._enter_dungeon("FIXED")
 	reset_arena(game)
-	runtime.cast(game, Resolver.DEFINITIONS["EARTH"], Vector2.RIGHT)
+	game.research.load_data({"main_attribute":"EARTH"});runtime.cast(game, Resolver.DEFINITIONS["EARTH"], Vector2.RIGHT)
 	game._die()
 	check(runtime.barriers.is_empty() and game.missiles.is_empty(), "Death clears temporary effects without changing main attribute")
 	game.free()

@@ -5,9 +5,11 @@
 [resource]
 script = ExtResource("1")
 spell_id = &"METAL_LANCE"
-display_name = "관통 쇠창"
+display_name = "Ironlance"
 attribute = &"METAL"
 requires_elements = PackedStringArray("METAL")
+min_cohesion = 0.0
+min_form = 0.0
 mana_cost = 16.0
 damage = 24.0
 effect = &"projectile"

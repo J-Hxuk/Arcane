@@ -1,0 +1,15 @@
+{
+ "status":"proposal_only_not_loaded_by_runtime",
+ "draft_version":1,
+ "example_existing_identity":"OH-061",
+ "personal_mapping":"active_chant",
+ "core":{"operations":["ACCUMULATE","SHAPE","DIRECT"],"requires_main":"WATER","decision":"existing_structure_and_research_checks"},
+ "modifier_budget":{"experimental_value":2,"confirmed":false},
+ "modifier_examples":[
+  {"operation":"COMPRESS","intent":"concentration_tradeoff","identity_change":false},
+  {"operation":"EXPAND","intent":"distribution_tradeoff","requires_existing_advanced_research":true,"identity_change":false}
+ ],
+ "cast_transaction":"revalidate_final_state_then_execute_and_pay_atomically",
+ "recording":{"keep_original_steps":true,"store_stage_boundaries":true,"replay_resimulation":false},
+ "unresolved":["stage_boundary_input_UI","modifier_cost_curve","reuse_B_O_T_or_state_seed","same_element_identity_collisions"]
+}

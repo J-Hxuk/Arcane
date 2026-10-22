@@ -1,0 +1,24 @@
+{
+  "id": "RUIN_GUARDIAN",
+  "name": "폐허의 수호 기사",
+  "max_hp": 260.0,
+  "reward_gold": 60,
+  "traits": {
+    "size": 26.0,
+    "mass_class": 5,
+    "materials": ["steel_plate", "cloth_joints"],
+    "root_resistance": 0.65,
+    "knockback_resistance": 0.80,
+    "stagger_resistance": 0.55,
+    "guard_damage_factor": 0.65,
+    "piercing_guard_factor": 0.92,
+    "exposed_damage_factor": 1.2,
+    "poise_max": 100.0
+  },
+  "patterns": {
+    "SWEEP": {"name": "넓은 베기", "windup": 0.85, "active": 0.18, "recovery": 1.55, "damage": 22.0, "range": 135.0},
+    "CHARGE": {"name": "방패 돌진", "windup": 1.05, "active": 0.58, "recovery": 2.2, "damage": 28.0, "speed": 530.0},
+    "SLAM": {"name": "강한 내려찍기", "windup": 1.4, "active": 0.16, "recovery": 2.8, "damage": 32.0, "radius": 88.0},
+    "THROW": {"name": "투척 칼날", "windup": 0.9, "active": 0.15, "recovery": 1.9, "damage": 16.0, "speed": 300.0}
+  }
+}

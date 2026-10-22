@@ -1,0 +1,37 @@
+{
+ "version":7,"status":"prototype_acceptance_thresholds_not_final_balance",
+ "profiles":{
+ "OH-001":{"mana_amount":[10,30],"cohesion":[0,25],"form_integrity":[50,100],"coupling":[1,3],"persistence":[0.5,2],"flow_strength":[0.5,1],"spread":[0,0.4]},
+ "OH-002":{"mana_amount":[10,20],"cohesion":[0,24],"form_integrity":[50,100],"spread":[0.4,1],"flow_strength":[0.5,1],"coupling":[0,0.99],"persistence":[0,0.49]},
+ "OH-003":{"mana_amount":[10,25],"cohesion":[25,49],"form_integrity":[0,49],"flow_strength":[0.5,0.89],"coupling":[0,0.99]},
+ "OH-016":{"mana_amount":[10,30],"cohesion":[0,24],"form_integrity":[0,49],"flow_strength":[0.5,1],"coupling":[1,3]},
+ "OH-017":{"mana_amount":[10,25],"cohesion":[0,24],"form_integrity":[50,100],"spread":[0.4,1],"flow_strength":[0.5,1],"coupling":[1,3]},
+ "OH-018":{"mana_amount":[10,25],"cohesion":[25,49],"form_integrity":[50,100],"flow_strength":[0.5,1],"coupling":[1,3],"persistence":[0,0.49]},
+ "OH-031":{"mana_amount":[20,40],"cohesion":[25,74],"form_integrity":[50,100],"persistence":[0.5,2],"flow_strength":[0,0.49]},
+ "OH-032":{"mana_amount":[10,30],"cohesion":[50,74],"form_integrity":[0,49],"flow_strength":[0.5,1],"persistence":[0,0.49]},
+ "OH-033":{"mana_amount":[10,30],"cohesion":[25,49],"form_integrity":[50,100],"persistence":[0,0.49],"flow_strength":[0.5,1],"spread":[0,0.3]},
+ "OH-046":{"mana_amount":[10,30],"cohesion":[50,74],"form_integrity":[50,100],"spread":[0,0.3],"flow_strength":[0.9,1],"persistence":[0,0.49]},
+ "OH-047":{"mana_amount":[10,20],"cohesion":[25,49],"form_integrity":[0,49],"flow_strength":[0.9,1],"coupling":[0,0.99],"persistence":[0,0.49]},
+ "OH-048":{"mana_amount":[10,30],"cohesion":[25,49],"form_integrity":[50,100],"coupling":[1,3],"persistence":[0.5,2],"flow_strength":[0.5,1],"spread":[0,0.4]},
+ "OH-061":{"mana_amount":[20,40],"cohesion":[0,49],"form_integrity":[0,49],"flow_strength":[0.9,1],"coupling":[0,0.99]},
+ "OH-062":{"mana_amount":[10,15],"cohesion":[0,24],"form_integrity":[50,100],"spread":[0,0.3],"persistence":[0.5,2],"flow_strength":[0.5,1],"coupling":[0,0.99]},
+ "OH-063":{"mana_amount":[20,40],"cohesion":[0,24],"form_integrity":[50,100],"spread":[0.4,1],"flow_strength":[0.5,1],"coupling":[0,0.99],"persistence":[0,0.49]}
+ },
+ "examples":{
+ "OH-001":["ACCUMULATE","SHAPE","RESONATE","STABILIZE","DIRECT"],
+ "OH-002":["ACCUMULATE","DIRECT","SHAPE"],
+ "OH-003":["ACCUMULATE","COMPRESS","DIRECT"],
+ "OH-016":["ACCUMULATE","RESONATE","DIRECT"],
+ "OH-017":["ACCUMULATE","RESONATE","DIRECT","SHAPE"],
+ "OH-018":["ACCUMULATE","COMPRESS","SHAPE","RESONATE","DIRECT"],
+ "OH-031":["ACCUMULATE","ACCUMULATE","COMPRESS","SHAPE","STABILIZE"],
+ "OH-032":["ACCUMULATE","COMPRESS","COMPRESS","DIRECT"],
+ "OH-033":["ACCUMULATE","COMPRESS","DIRECT","SHAPE"],
+ "OH-046":["ACCUMULATE","DIRECT","COMPRESS","COMPRESS","SHAPE"],
+ "OH-047":["ACCUMULATE","DIRECT","COMPRESS","DIRECT"],
+ "OH-048":["ACCUMULATE","COMPRESS","SHAPE","STABILIZE","RESONATE","DIRECT"],
+ "OH-061":["ACCUMULATE","ACCUMULATE","DIRECT","DIRECT"],
+ "OH-062":["ACCUMULATE","SHAPE","STABILIZE","DIRECT"],
+ "OH-063":["ACCUMULATE","ACCUMULATE","DIRECT","SHAPE"]
+ }
+}

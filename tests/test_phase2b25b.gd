@@ -34,7 +34,8 @@ func game_at(element: Variant):
 	root.add_child(game)
 	return game
 
-static func keys(profile: Profile, element: String, actions: Array = BASIC) -> Array:
+static func keys(profile: Profile, element: String, actions: Array = []) -> Array:
+	if actions.is_empty():actions=preload("res://scripts/developer_test_data.gd").basic_actions(element)
 	return Helper.path_for(profile, actions, "C" if element.is_empty() else Helper.first_for(profile, element))
 
 func _run() -> void:
@@ -59,13 +60,16 @@ func _short_chants() -> void:
 			var inputs := Helper.inputs(keys(profile, element))
 			var raw := Sim.simulate(profile, inputs, true, {"innate_element": "WOOD"})
 			var result := Resolver.resolve(raw, element)
-			all_short = all_short and result["state"] == "ready" and inputs.size() == 5
-			var alternative := Sim.simulate(profile, Helper.inputs(keys(profile, element, ["ACCUMULATE", "SHAPE", "COMPRESS", "DIRECT"])), true, {"innate_element": "WOOD"})
-			all_equivalent = all_equivalent and raw["final_state"] == alternative["final_state"] and Resolver.resolve(alternative, element).get("spell") == result.get("spell")
+			all_short = all_short and result["state"] == "ready" and inputs.size() <= 7
+			var alternate_actions:Array=preload("res://scripts/developer_test_data.gd").basic_actions(element)
+			var swap_index:=1 if element=="FIRE" else 0
+			var first_action=alternate_actions[swap_index];alternate_actions[swap_index]=alternate_actions[swap_index+1];alternate_actions[swap_index+1]=first_action
+			var alternative := Sim.simulate(profile, Helper.inputs(keys(profile, element, alternate_actions)), true, {"innate_element": "WOOD"})
+			all_equivalent = all_equivalent and raw["final_state"] == alternative["final_state"] and str(Resolver.resolve(alternative, element).get("spell").spell_id) == str(result.get("spell").spell_id)
 			all_locked = all_locked and Resolver.resolve(raw, null)["state"] == "locked"
 			var research := Research.new()
 			evidence_protected = evidence_protected and not research.record_resonance(profile, inputs, 1) and research.stable_count(element) == 0
-	check(all_short, "Six elements across six personal mappings reach basic combat in five inputs")
+	check(all_short, "Six elements across six personal mappings reach differentiated basic states within seven inputs")
 	check(all_equivalent, "Alternate manipulation orders reach the same final state and spell")
 	check(all_locked, "Short structures still require the permanent awakened main")
 	check(evidence_protected, "Short basic structures cannot replace stable resonance evidence or awakening")
@@ -86,7 +90,7 @@ func _lab_trials() -> void:
 		var expected: Dictionary = game._inspect_chant(true)
 		var mana: float = game.player_mana
 		game._cast_spell()
-		check(game.laboratory_panel.trial_panel.visible and game.laboratory_panel.trial_banner.text.contains(expected["spell"].display_name), element + " has an immediate named manifestation banner and visible arena")
+		check(game.laboratory_panel.panel.visible and not game.laboratory_panel.trial_panel.visible and game.laboratory_panel.discovery_text.text.contains(expected["spell"].display_name), element + " discovery keeps research screen and shows a readable named notification")
 		check(game.player_mana == mana - expected["mana_cost"] and game.missiles.is_empty() and game.research.to_data() == permanent, element + " safe trial charges real mana and never mutates dungeon actors or permanent research")
 		check(game.journal.records()[-1]["result"].get("manifestation", {}).get("spell_id") == str(expected["spell"].spell_id), element + " archived experiment distinguishes combat manifestation from resonance")
 		arena.advance(0.8)
@@ -133,10 +137,12 @@ func _fire_studies() -> void:
 	check(protected, "Advanced FIRE never bypasses main-attribute permission")
 	var game = game_at("FIRE")
 	game._enter_laboratory()
+	# Deterministic executor fixture. Actual cursor aiming is covered by preview_phase4_m1.
+	game.laboratory_panel.arena.controller = null
 	var permanent: Dictionary = game.research.to_data()
 	for kind in ["FIRE_EMBER", "FIRE_LANCE", "FIRE_BLAST"]:
 		game._laboratory_recover()
-		var actions: Array = BASIC if kind == "FIRE_EMBER" else fire_actions(kind)
+		var actions: Array = preload("res://scripts/developer_test_data.gd").basic_actions("FIRE") if kind == "FIRE_EMBER" else fire_actions(kind)
 		Awakening.enter_keys(game, keys(game.chant_profile, "FIRE", actions))
 		var result: Dictionary = game._inspect_chant(true)
 		check(str(result["spell"].spell_id) == kind, kind + " has a distinct final mana structure")
@@ -156,7 +162,7 @@ func _fire_studies() -> void:
 	var inputs := Helper.inputs(keys(game.chant_profile, "FIRE", fire_actions("FIRE_LANCE")))
 	var raw := Sim.simulate(game.chant_profile, inputs, false, {"innate_element": "WATER"})
 	raw["final_state"]["resonance"]["FIRE"] = 50.0
-	check(Resolver.resolve(raw, "FIRE")["spell"].spell_id == &"FIRE_EMBER", "Opposed affinity still demands additional resonance for advanced forms")
+	check(Resolver.resolve(raw, "FIRE").get("spell")==null, "Opposed affinity still demands additional resonance for advanced forms")
 	var arena = game.laboratory_panel.arena
 	arena.reset_targets()
 	arena.combat.barriers.append({"pos": arena.player_pos + Vector2(80, 0), "radius": 22.0, "life": 5.0, "color": Color.WHITE})
@@ -185,13 +191,13 @@ func _unsuccessful_attempts() -> void:
 	game._reset_combat_input()
 	game._laboratory_recover()
 	Awakening.enter_keys(game, keys(game.chant_profile, "WATER"))
-	game.player_mana = 0
+	game.player_mana = 0; game.mana_debt=game.ManaOverdraw.limit(game._max_mana())
 	game._cast_spell()
 	check(game.discovered.entries().is_empty() and game.laboratory_panel.trial_banner.text.contains("마나가 부족"), "Insufficient mana has explicit failure feedback and creates no discovery")
 	game._laboratory_recover()
 	game.exhaustion_seconds = 1
 	game._cast_spell()
-	check(game.discovered.entries().is_empty() and game.laboratory_panel.trial_banner.text.contains("탈진"), "Exhaustion cannot leave a stale success banner or create a discovery")
+	check(game.discovered.entries().is_empty() and game.laboratory_panel.trial_banner.text.contains("안정화"), "Failure recovery cannot leave a stale success banner or create a discovery")
 	game._laboratory_recover()
 	game._cast_spell()
 	check(game.laboratory_panel.trial_commands.text.contains("전투 발현 완료") and not game.laboratory_panel.trial_commands.text.contains("전투 발현과 별개"), "Completed combat display cannot contradict its own named success banner")
@@ -204,11 +210,11 @@ func _spell_records() -> void:
 	Awakening.enter_keys(game, keys(game.chant_profile, "WATER"))
 	game._cast_spell()
 	var entries: Array = game.discovered.entries()
-	check(entries.size() == 1 and entries[0]["spell_id"] == "WATER_PUSH" and entries[0]["recipes"][0]["inputs"].size() == 5, "Only a genuinely successful personal spell enters the chant book")
+	check(entries.size() == 1 and entries[0]["spell_id"] == "WATER_PUSH" and entries[0]["recipes"][0]["inputs"].size() == 5, "Only a genuinely successful personal Tidebolt enters the chant book")
 	var saved_inputs: Array = entries[0]["recipes"][0]["inputs"]
 	check(saved_inputs == game.journal.records()[-1]["steps"].map(func(step): return step["input"]), "Discovery stores exact evaluated successful press/hold timings from the journal")
 	game._laboratory_recover()
-	Awakening.enter_keys(game, keys(game.chant_profile, "WATER", ["ACCUMULATE", "SHAPE", "COMPRESS", "DIRECT"]))
+	Awakening.enter_keys(game, keys(game.chant_profile, "WATER", ["ACCUMULATE", "DIRECT", "ACCUMULATE", "DIRECT"]))
 	game._cast_spell()
 	check(game.discovered.entries()[0]["recipes"].size() == 2, "A different successful path to the same spell is retained as a second chant")
 	game._change_spell_preference("WATER_PUSH", true, 1)
@@ -223,7 +229,7 @@ func _spell_records() -> void:
 	check(Helper.equal(game.discovered.to_data(), book) and Helper.equal(game.chant_profile.to_data(), original) and game.discovered.entries()[0]["favorite"], "Scene reload restores discovered variants, favorite, representative and unchanged key mapping")
 	var hud = game.spell_record_hud
 	hud.toggle()
-	check(hud.recipe.text == Book.format_inputs(book["spells"]["WATER_PUSH"]["recipes"][1]["inputs"]) and hud.title.text.contains("밀물 탄"), "Dungeon HUD displays the selected actual successful chant rather than a shared recipe")
+	check(hud.recipe.text.begins_with(Book.format_inputs(book["spells"]["WATER_PUSH"]["recipes"][1]["inputs"])) and hud.title.text.contains("Tidebolt") and hud.recipe.text.contains("호환 기록"), "Dungeon HUD displays the selected actual successful chant and its compatibility grammar label")
 	Awakening.enter_keys(game, keys(game.chant_profile, "WATER"))
 	var mana: float = game.player_mana
 	var event := InputEventMouseButton.new()

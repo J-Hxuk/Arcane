@@ -11,6 +11,9 @@ signal attack_requested
 signal cast_requested
 signal cancel_requested
 signal interact_requested
+signal move_requested(position: Vector2)
+signal dodge_requested
+signal mobile_session_finished
 
 const COMMAND_TOKENS := ["Q", "E", "R", "F", "Z", "X", "C", "V", "T", "G", "W", "A", "S", "D"]
 const MOVEMENT_ACTIONS := [&"move_left", &"move_right", &"move_up", &"move_down"]
@@ -25,6 +28,9 @@ var _tap_started_at := -INF
 var _tap_released := false
 var last_command_time := 0.0
 var _command_holds: Dictionary = {}
+var legacy_wasd_enabled := false
+var profile_version := 1
+var _mobile_session_has_commands := false
 
 func handle_event(event: InputEvent, now: float) -> void:
 	if not (event is InputEventKey or event is InputEventMouseButton):
@@ -54,8 +60,18 @@ func handle_event(event: InputEvent, now: float) -> void:
 		return
 	if not event.is_pressed():
 		return
+	if event.is_action(&"move_destination"):
+		_invalidate_tap()
+		if mode != Mode.FOCUS_CAST and event is InputEventMouseButton:
+			move_requested.emit(event.position)
+		return
+	if event.is_action(&"dodge"):
+		_invalidate_tap()
+		if mode != Mode.FOCUS_CAST: dodge_requested.emit()
+		return
 	if event.is_action(&"cancel_cast"):
 		_invalidate_tap()
+		discard_mobile_session()
 		if mode == Mode.FOCUS_CAST:
 			_set_mode(Mode.NORMAL)
 		cancel_requested.emit()
@@ -74,18 +90,20 @@ func handle_event(event: InputEvent, now: float) -> void:
 		return
 	for index in range(COMMAND_TOKENS.size()):
 		# The last four tokens share bindings with movement, only in focus mode.
-		if index >= 10 and mode != Mode.FOCUS_CAST:
+		if profile_version == 2 and COMMAND_TOKENS[index] in ["T", "G"]: continue
+		if profile_version == 1 and index >= 10 and mode != Mode.FOCUS_CAST:
 			continue
 		var token: String = COMMAND_TOKENS[index]
 		if event.is_action(StringName("rune_" + token.to_lower())):
 			_invalidate_tap()
 			last_command_time = now
+			if mode == Mode.MOBILE_CAST: _mobile_session_has_commands = true
 			_command_holds[source] = {"token": token, "time": now}
 			command_entered.emit(token)
 			return
 
 func movement_axis() -> Vector2:
-	if mode == Mode.FOCUS_CAST:
+	if not legacy_wasd_enabled or mode == Mode.FOCUS_CAST:
 		return Vector2.ZERO
 	return Vector2(
 		float(_is_held(&"move_right")) - float(_is_held(&"move_left")),
@@ -93,12 +111,17 @@ func movement_axis() -> Vector2:
 	).normalized()
 
 func reset() -> void:
+	discard_mobile_session()
 	_pressed_sources.clear()
 	_action_sources.clear()
 	_command_holds.clear()
 	swift_sense_held = false
 	_invalidate_tap()
 	_set_mode(Mode.NORMAL)
+
+func discard_mobile_session() -> void:
+	_mobile_session_has_commands = false
+	_command_holds.clear()
 
 func _source_id(event: InputEvent) -> String:
 	if event is InputEventKey:
@@ -129,9 +152,19 @@ func _shift_pressed(now: float) -> void:
 	_tap_started_at = now
 	_tap_released = false
 	if mode != Mode.FOCUS_CAST:
+		_mobile_session_has_commands = false
 		_set_mode(Mode.MOBILE_CAST)
 
 func _shift_released(now: float) -> void:
+	# Rune entry invalidated the tap candidate. Only that real mobile session can
+	# end here; an empty first/second tap or focus-mode key-up cannot submit.
+	var submit: bool = mode == Mode.MOBILE_CAST and _mobile_session_has_commands and _tap_started_at == -INF
+	_mobile_session_has_commands = false
+	if submit:
+		for held in _command_holds.values():
+			command_released.emit(held["token"], maxi(0, roundi((now - held["time"]) * 1000.0)))
+		_command_holds.clear()
+		mobile_session_finished.emit()
 	if now >= _tap_started_at and now - _tap_started_at <= double_tap_window + TIMING_EPSILON:
 		_tap_released = true
 	else:

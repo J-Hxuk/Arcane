@@ -13,7 +13,7 @@ static func relation(innate: String, target: String) -> String:
 	return "neutral"
 
 static func requirements(element: String, context: Dictionary) -> Dictionary:
-	var definition = Elements.DEFINITIONS[element]
+	var definition = Elements.resource(element)
 	var affinity_relation := relation(str(context.get("innate_element", "")), element)
 	var stability: float = definition.resonance_stability
 	var resonance: float = definition.resonance_required
@@ -34,6 +34,12 @@ static func requirements(element: String, context: Dictionary) -> Dictionary:
 	var knowledge: Dictionary = context.get("knowledge", {}).get(element, {})
 	if knowledge.get("book", false): resonance -= 10.0
 	if knowledge.get("mentor", false): stability -= 10.0
+	var main = context.get("main_attribute")
+	if main != null and main != element and main in Elements.OHAENG:
+		var main_relation := relation(main, element)
+		var pressure := 10.0 if main_relation == "opposed" else 5.0
+		stability += pressure
+		interference += pressure * 0.5
 	stability += float(context.get("control_penalty", 0.0))
 	return {"stability": clampf(stability, 55.0, 95.0), "resonance": clampf(resonance, 50.0, 100.0),
 		"gain": gain, "interference": interference, "relation": affinity_relation}

@@ -37,21 +37,21 @@ func _run() -> void:
 	await process_frame
 	await _key(KEY_B)
 	var ui = game.research_panel
-	_check(ui.is_open() and ui.summary.text.contains("0 / 3"), "Engine B input opens zero-slot research UI")
+	_check(ui.is_open() and ui.summary.text.contains("0 / 2"), "Engine B input opens zero-slot research UI")
 	await _capture("research_zero")
 	await _click(ui.rows["FIRE"]["start"])
 	_check(not ui.confirmation.visible and game.research.researched_base_elements.is_empty(), "Old direct-confirm button cannot bypass awakening")
 	await _key(KEY_B)
 	game.free()
 	# Pre-existing 3-slot fixture; no new auxiliary acquisition in Phase 2B-2.
-	Flow.write(path, Flow.seeded_fixture(["WOOD", "WATER", "VOID"]))
+	Flow.write(path, Flow.seeded_fixture(["WOOD", "WATER", "EARTH"]))
 	game = SCENE.instantiate()
 	game.save_path = path
 	root.add_child(game)
 	game.set_process(false)
 	await _key(KEY_B)
 	ui = game.research_panel
-	_check(ui.is_open() and ui.summary.text.contains("3 / 3") and game.research.main_attribute == null, "Existing three slots remain visible without an inferred main")
+	_check(ui.is_open() and ui.summary.text.contains("호환 기록 3개") and game.research.main_attribute == null, "Existing three slots remain visible without an inferred main")
 	await _capture("research_three")
 	await _click(ui.rows["FIRE"]["start"])
 	_check(not ui.confirmation.visible and game.research.researched_base_elements.size() == 3, "Disabled fourth-element GUI button cannot open or commit")

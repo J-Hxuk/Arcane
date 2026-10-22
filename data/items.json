@@ -1,0 +1,4 @@
+{
+  "HP_POTION": {"name": "체력 물약", "price": 12, "restore": 45, "resource": "hp"},
+  "MANA_POTION": {"name": "마나 물약", "price": 15, "restore": 40, "resource": "mana"}
+}

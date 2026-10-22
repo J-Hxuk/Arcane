@@ -1,0 +1,14 @@
+{
+ "respawn":{"seconds":60.0,"minimum_player_distance":500.0,"max_outstanding_drops_per_spawn":2,"save_interval":5.0},
+ "types": {
+  "MOSS": {"name":"이끼 정령", "hp":36, "damage":7, "speed":62, "gold":7, "aggro":220, "leash":340, "range":55, "windup":0.65, "recovery":1.2},
+  "SHALE": {"name":"돌껍질 정령", "hp":48, "damage":10, "speed":46, "gold":10, "aggro":200, "leash":320, "range":60, "windup":0.85, "recovery":1.5}
+ },
+ "spawns": [
+  {"id":"N01", "type":"MOSS", "position":[460,-220]},
+  {"id":"N02", "type":"MOSS", "position":[1020,-300]},
+  {"id":"N03", "type":"SHALE", "position":[1340,-570]},
+  {"id":"N04", "type":"MOSS", "position":[580,-750]},
+  {"id":"N05", "type":"SHALE", "position":[220,-720]}
+ ]
+}

@@ -82,10 +82,10 @@ func _laws() -> void:
 	var all_single_hidden := true
 	var deterministic := true
 	var all_awakenable := true
-	for innate in Profile.ELEMENTS:
+	for innate in Profile.OHAENG:
 		var model := Research.new()
 		model.load_data({"innate_affinity": {innate: 85}})
-		for element in Profile.ELEMENTS:
+		for element in Profile.OHAENG:
 			for source in ["book", "mentor"]: model.acquire_clue(element, source, Rules.clue_id(element, source))
 			var context := model.simulation_context()
 			var events := Helper.inputs(sequence(profile, element, true))
@@ -101,10 +101,10 @@ func _laws() -> void:
 			if proof["state"] != "confirmation_required" or candidate.start_element_research(element, proof.get("ticket", 0)) != "committed": all_awakenable = false
 			var single := Sim.simulate(profile, Helper.inputs([Helper.first_for(profile, element)]), true, context)
 			if single["kind"] != "none" or single["observation"] != "뚜렷한 변화가 관찰되지 않습니다.": all_single_hidden = false
-	check(all_reachable, "All 36 innate/target combinations have reachable ritual structures, including opposed and VOID")
-	check(deterministic, "Every six-element experiment is deterministic under identical character/knowledge conditions")
-	check(all_awakenable, "All 36 combinations can complete the full clue/evidence/ritual/confirmation model flow")
-	check(all_single_hidden, "First word reveals neither element phenotype nor innate affinity in all 36 combinations")
+	check(all_reachable, "All 25 elemental innate/target combinations have reachable ritual structures, including opposed pairs")
+	check(deterministic, "Every elemental experiment is deterministic under identical character/knowledge conditions")
+	check(all_awakenable, "All 25 elemental combinations can complete the full clue/evidence/ritual/confirmation model flow")
+	check(all_single_hidden, "First word reveals neither element phenotype nor innate affinity in all 25 elemental combinations")
 	for innate in Rules.CONTROLS:
 		var controlled: String = Rules.CONTROLS[innate]
 		check(Rules.relation(innate, controlled) == "opposed" and Rules.relation(controlled, innate) == "opposed", "Directed control edge penalizes either innate/target direction: " + innate)
@@ -129,13 +129,13 @@ func _model_guards() -> void:
 	var model := Research.new()
 	check(model.main_attribute == null and model.auxiliary_attributes.is_empty(), "New model has no main or auxiliary attribute")
 	check(model.request_research("WOOD")["state"] == "awakening_required" and model.start_element_research("WOOD", 1) == "confirmation_required", "Old Phase 2A UI/API cannot bypass the awakening flow")
-	check(model.begin_ritual("WOOD") == "clues_required", "Ritual cannot start without book and mentor")
+	check(model.begin_ritual("WOOD") == "clues_required", "Ritual cannot start without any clue")
 	for source in ["book", "mentor"]: model.acquire_clue("WOOD", source, Rules.clue_id("WOOD", source))
 	check(model.begin_ritual("WOOD") == "stable_reproduction_required" and model.researched_base_elements.is_empty(), "Clue acquisition alone never unlocks or occupies a slot")
 	var events := Helper.inputs(sequence(profile, "WOOD"))
 	model.record_resonance(profile, events, 1)
 	model.record_resonance(profile, events, 1)
-	check(model.stable_count("WOOD") == 1 and model.begin_ritual("WOOD") == "stable_reproduction_required", "One record cannot be counted twice as stable reproduction")
+	check(model.stable_count("WOOD") == 1 and model.begin_ritual("WOOD") == "ritual_started", "Duplicate evidence stays one record; one stable experiment now allows a manual ritual")
 	model.record_resonance(profile, events, 2)
 	check(model.begin_ritual("WOOD") == "ritual_started", "Two separate stable records and both clue types allow a ritual attempt")
 	check(model.complete_ritual(profile, events)["state"] == "ritual_structure_required", "Stable resonance alone cannot bypass ritual shape and direction")
@@ -148,8 +148,8 @@ func _model_guards() -> void:
 	var fresh := model.complete_ritual(profile, Helper.inputs(sequence(profile, "WOOD", true)))
 	check(model.start_element_research("WOOD", proof["ticket"]) == "confirmation_required", "Reattempt invalidates the previous proof")
 	check(model.start_element_research("WOOD", fresh["ticket"]) == "committed" and model.main_attribute == "WOOD" and model.researched_base_elements.size() == 1, "Exactly one main and slot are committed atomically in the model")
-	check(model.start_element_research("WOOD", fresh["ticket"]) == "already_researched" and model.start_element_research("FIRE", 999) == "main_already_confirmed", "Duplicate confirmation is a no-op and a second main is rejected")
-	check(model.begin_ritual("FIRE") == "main_already_confirmed" and model.request_research("FIRE")["state"] == "auxiliary_deferred", "No auxiliary acquisition is exposed in this phase")
+	check(model.start_element_research("WOOD", fresh["ticket"]) == "already_researched" and model.start_element_research("FIRE", 999) == "confirmation_required", "Duplicate is a no-op and a forged auxiliary confirmation is rejected")
+	check(model.begin_ritual("FIRE") == "clues_required" and model.request_research("FIRE")["state"] == "auxiliary_awakening_required", "New auxiliary research needs its own evidence and ritual")
 	check(not model.to_data().has("researched_base_elements") and model.to_data()["main_attribute"] == "WOOD", "Roles are the only persisted source of new permanent research")
 
 func _flow() -> void:
@@ -162,7 +162,7 @@ func _flow() -> void:
 	game._enter_laboratory()
 	game._collect_research_clue("EARTH", "book")
 	game._collect_research_clue("EARTH", "mentor")
-	check(game.research.researched_base_elements.is_empty() and game.laboratory_panel.awakening_panel.journal_view.text.contains("스승"), "Real book and mentor interactions are recorded in the clue journal without slots")
+	check(game.research.researched_base_elements.is_empty() and game.research.research_clues.any(func(clue):return clue.source=="mentor") and not game.laboratory_panel.awakening_panel.journal_view.visible, "Real mentor clues remain internal without slot use or duplicate clue-list UI")
 	for repetition in range(2):
 		enter_keys(game, sequence(game.chant_profile, "EARTH"))
 		game._cast_spell()
@@ -191,7 +191,7 @@ func _flow() -> void:
 	ui.confirmation.confirmed.emit()
 	check(game.research.main_attribute == "EARTH" and game.research.researched_base_elements == PackedStringArray(["EARTH"]) and game.research.auxiliary_attributes.is_empty(), "Actual confirmation commits only the chosen main and one slot")
 	check(game.chant_profile.to_data() == mapping and game.research.innate_affinity == original_affinity, "Awakening never rewrites personal key tables or innate talent")
-	check(game._begin_awakening("FIRE") == "main_already_confirmed" and game._confirm_element_research("FIRE", 999) == "main_already_confirmed", "Another main and arbitrary API bypass are rejected after commitment")
+	check(game._begin_awakening("FIRE") != "ritual_started" and game._confirm_element_research("FIRE", 999) == "confirmation_required" and game.research.main_attribute == "EARTH", "Auxiliary API cannot replace the main or bypass its ritual")
 	var stored: Dictionary = Save.load_file(path)["data"]
 	check(stored["research"]["main_attribute"] == "EARTH" and not stored["research"].has("researched_base_elements"), "One save transaction contains the role and derived-slot source with no duplicate list")
 	write(RESTART, stored)
@@ -202,7 +202,7 @@ func _flow() -> void:
 	game.free()
 
 func _compatibility() -> void:
-	var fixture := seeded_fixture(["WOOD", "FIRE", "VOID"])
+	var fixture := seeded_fixture(["WOOD", "FIRE", "EARTH"])
 	var old_profile := Profile.new()
 	old_profile.load_data(fixture["chant"])
 	var old_log = preload("res://scripts/experiment_journal.gd").new()
@@ -214,7 +214,7 @@ func _compatibility() -> void:
 	var original := FileAccess.get_file_as_bytes(path)
 	var game = game_at(path)
 	check(game.save_writable and FileAccess.get_file_as_bytes(path + ".v2.bak") == original, "v2 original bytes are backed up before migration")
-	check(game.research.main_attribute == null and game.research.legacy_committed_attributes == PackedStringArray(["WOOD", "FIRE", "VOID"]), "Existing locked research is preserved with no guessed main/auxiliary roles")
+	check(game.research.main_attribute == null and game.research.legacy_committed_attributes == PackedStringArray(["WOOD", "FIRE", "EARTH"]), "Three existing elemental slots are preserved without guessed roles")
 	var saved: Dictionary = Save.load_file(path)["data"]
 	var preserved := true
 	for key in fixture:
@@ -233,7 +233,7 @@ func _compatibility() -> void:
 	check(ui.confirmation.dialog_text.contains("이미 점유한 기존 슬롯"), "Legacy role designation is explicitly described before commitment")
 	ui.confirmation.hide()
 	ui.confirmation.confirmed.emit()
-	check(game.research.main_attribute == "FIRE" and game.research.researched_base_elements.size() == 3 and game.research.researched_base_elements.has("WOOD") and game.research.researched_base_elements.has("VOID"), "Explicit legacy promotion changes one role without freeing or duplicating any slot")
+	check(game.research.main_attribute == "FIRE" and game.research.researched_base_elements.size() == 3 and game.research.researched_base_elements.has("WOOD") and game.research.researched_base_elements.has("EARTH"), "Explicit legacy promotion changes one role without freeing or duplicating any elemental slot")
 	game.free()
 	var corrupt := seeded_fixture()
 	corrupt["schema_version"] = 3
@@ -280,6 +280,6 @@ func _restart() -> void:
 	check(Helper.equal(game.chant_profile.to_data(), expected["chant"]) and Helper.equal(game.journal.to_data(), expected["laboratory"]), "Separate process preserves exact old key tables and full experiment journal")
 	check(Helper.equal(game.research.innate_affinity, expected["research"]["innate_affinity"]) and game.magic_talent == 67 and game.body_talent == 34, "Separate process retains original innate and magic/body talents")
 	game._enter_laboratory()
-	check(game._begin_awakening("FIRE") == "main_already_confirmed", "Main lock remains enforced after engine restart")
+	check(game._begin_awakening("FIRE") != "ritual_started" and game.research.main_attribute == "EARTH", "Main remains unchanged and auxiliary prerequisites persist after restart")
 	check(game.research.stable_count("EARTH") >= 2 and game.research.has_clue("EARTH", "book") and game.research.has_clue("EARTH", "mentor"), "Stable evidence and both clue sources persist across restart")
 	game.free()

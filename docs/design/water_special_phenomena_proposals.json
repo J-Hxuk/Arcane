@@ -1,0 +1,12 @@
+{
+  "status":"UNCONFIRMED_DESIGN_ONLY_NOT_RUNTIME_LOADED",
+  "activation":{"threshold":0.57,"width":0.18,"stability_low":25,"stability_high":55},
+  "candidates":[
+    {"id":"UNDERTOW_ORBIT","prototype":"PX-WATER-VORTEX","axis":"circulation","extra_cost_max":0.14},
+    {"id":"UNDERTOW_DOUBLE_CORE","prototype":"PX-WATER-VORTEX","axis":"distribution","extra_cost_max":0.10},
+    {"id":"RAZORFLOW_CURVED_JET","prototype":"PX-WATER-JET","axis":"motion","extra_cost_max":0.10},
+    {"id":"RAZORFLOW_CUT_WAKE","prototype":"PX-WATER-JET","axis":"pressure","extra_cost_max":0.18},
+    {"id":"ABYSSAL_RELEASE_RING","prototype":"PX-WATER-PRISON","axis":"confinement","extra_cost_max":0.10},
+    {"id":"ABYSSAL_REFRACT_SHELL","prototype":"PX-WATER-PRISON","axis":"persistence","extra_cost_max":0.18}
+  ]
+}

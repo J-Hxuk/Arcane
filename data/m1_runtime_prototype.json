@@ -1,0 +1,8 @@
+{
+  "status": "PROTOTYPE_NOT_FINAL",
+  "limits": {"min_mana": 10, "max_mana": 30, "max_cohesion": 75, "min_stability": 50, "max_loss": 6},
+  "structures": {"formed": 50, "compact": 25},
+  "tuning": {"amount_step": 10, "density_step": 25, "form_step": 50, "damage_per_density": 0.12, "duration_per_amount": 0.10, "push_per_amount": 0.10, "range_loss_per_density": 0.15, "area_per_form": 0.15, "projectile_width_per_form": 6},
+  "boss": {"confirmed_root_cap": 1.5, "pending_root_reapply_multiplier": 0.75, "pending_root_reset": "encounter", "pending_metal_earth_poise_bonus": 8},
+  "pending": ["State thresholds and tuning curves", "P01 root decay/reset", "P03 poise values", "P05 wall HP/count", "P06 burn stacking", "P11 displacement formula"]
+}

@@ -99,7 +99,7 @@ func _profile_and_simulator() -> void:
 		if Sim.simulate(profile, inputs([first]))["observation"] != single["observation"]: same_observation = false
 	check(same_observation, "No first-key affinity or element signal is leaked")
 	var path_a := path_for(profile, ["ACCUMULATE", "COMPRESS", "SHAPE", "DIRECT", "STABILIZE"])
-	var path_b := path_for(profile, ["ACCUMULATE", "SHAPE", "COMPRESS", "DIRECT", "STABILIZE"])
+	var path_b := path_for(profile, ["ACCUMULATE", "COMPRESS", "SHAPE", "STABILIZE", "DIRECT"])
 	var a := Sim.simulate(profile, inputs(path_a))
 	var b := Sim.simulate(profile, inputs(path_b))
 	check(a["state"] == "ready" and a["kind"] == "mana_bolt" and a["final_state"]["base_attributes"].is_empty(), "Neutral structure makes a bolt without requiring VOID or a slot")
@@ -260,7 +260,7 @@ func _integration() -> void:
 	var highs := 0
 	for score in fresh.research.innate_affinity.values():
 		if score == 85: highs += 1
-	check(highs == 1 and fresh.research.innate_affinity.size() == 6, "Only new characters get one hidden high affinity; old affinities were preserved")
+	check(highs == 1 and fresh.research.innate_affinity.size() == 5, "Only new characters get one hidden high affinity; old affinities were preserved")
 	fresh.free()
 
 func _enter_keys(game: Game, keys: Array) -> void:
@@ -310,7 +310,7 @@ func _restart() -> void:
 	check(equal(game.chant_profile.to_data(), expected["chant"]), "Separate engine process preserves both stored mappings and seed/version")
 	check(equal(game.journal.to_data(), expected["laboratory"]), "Separate engine process preserves every step and player note")
 	check(equal(game.research.to_data(), expected["research"]) and game.magic_talent == 62 and game.body_talent == 39, "Separate engine process preserves Phase 2A talents and permanent slots")
-	check(game.research.start_element_research("FIRE", 99) == "slots_full", "Three-slot rule remains enforced after role-schema restart")
+	check(game.research.start_element_research("FIRE", 99) == "confirmation_required" and game.research.researched_base_elements.size() == 2, "Neutral reclassification still requires genuine elemental confirmation after restart")
 	var first := first_for(game.chant_profile, "FIRE")
 	var result := Sim.simulate(game.chant_profile, inputs([first]))
 	check(result["kind"] == "none" and result["observation"] == "뚜렷한 변화가 관찰되지 않습니다.", "First-word non-disclosure also holds after restart")

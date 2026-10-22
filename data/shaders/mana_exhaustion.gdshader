@@ -1,0 +1,33 @@
+shader_type canvas_item;
+render_mode unshaded;
+uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_linear;
+uniform float strength = 0.0;
+uniform float ratio = 0.0;
+uniform float edge_warning = 0.0;
+uniform float blur_radius_px = 4.5;
+uniform float blur_minimum_radius_px = 1.5;
+uniform float edge_extra_radius_px = 4.0;
+uniform float vignette_maximum = 0.28;
+uniform float entry_tint_multiplier = 1.4;
+void fragment() {
+    vec2 centered = abs(SCREEN_UV * 2.0 - 1.0);
+    float edge = smoothstep(0.42, 1.0, max(centered.x, centered.y));
+    vec2 delta = SCREEN_PIXEL_SIZE * (mix(blur_minimum_radius_px, blur_radius_px, ratio) + edge_extra_radius_px * edge * (ratio + edge_warning));
+    vec4 source = texture(screen_texture, SCREEN_UV);
+    vec3 blurred = source.rgb * 0.20;
+    blurred += texture(screen_texture, SCREEN_UV + vec2(delta.x, 0.0)).rgb * 0.12;
+    blurred += texture(screen_texture, SCREEN_UV - vec2(delta.x, 0.0)).rgb * 0.12;
+    blurred += texture(screen_texture, SCREEN_UV + vec2(0.0, delta.y)).rgb * 0.12;
+    blurred += texture(screen_texture, SCREEN_UV - vec2(0.0, delta.y)).rgb * 0.12;
+    blurred += texture(screen_texture, SCREEN_UV + delta).rgb * 0.08;
+    blurred += texture(screen_texture, SCREEN_UV - delta).rgb * 0.08;
+    blurred += texture(screen_texture, SCREEN_UV + vec2(delta.x, -delta.y)).rgb * 0.08;
+    blurred += texture(screen_texture, SCREEN_UV + vec2(-delta.x, delta.y)).rgb * 0.08;
+    float mix_amount = clamp(strength + edge * (ratio * 0.15 + edge_warning), 0.0, 0.8);
+    vec3 result = mix(source.rgb, blurred, mix_amount);
+    float vignette = edge * clamp(ratio * vignette_maximum + edge_warning, 0.0, 0.5);
+    result = mix(result, vec3(0.10, 0.055, 0.14), vignette);
+    float rim = smoothstep(0.82, 1.0, max(centered.x, centered.y));
+    result = mix(result, vec3(0.55, 0.28, 0.65), clamp(edge_warning * entry_tint_multiplier * rim, 0.0, 0.4));
+    COLOR = vec4(result, 1.0);
+}

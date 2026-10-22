@@ -5,10 +5,11 @@
 [resource]
 script = ExtResource("1")
 spell_id = &"FIRE_BLAST"
-display_name = "화염폭발"
+display_name = "Ignition"
 attribute = &"FIRE"
 requires_elements = PackedStringArray("FIRE")
 research_tier = 2
+combat_rank = 2
 min_mana = 30.0
 max_cohesion = 50.0
 min_form = 100.0

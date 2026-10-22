@@ -1,0 +1,21 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/spell_definition.gd" id="1"]
+[resource]
+script = ExtResource("1")
+spell_id = &"WIND_PRESSURE_BOLT"
+display_name = "WIND_PRESSURE_BOLT"
+requires_elements = PackedStringArray("FIRE", "WATER")
+phenomenon = &"wind"
+visual_style = &"WIND_PRESSURE"
+combat_rank = 1
+min_binding_quality = 60.0
+min_cohesion = 0.0
+min_form = 0.0
+min_stability = 55.0
+mana_cost = 18.0
+damage = 10.0
+projectile_speed = 460.0
+projectile_color = Color(0.8, 0.95, 0.84, 1)
+status_effect = &"stagger"
+duration = 0.65
+knockback = 175.0

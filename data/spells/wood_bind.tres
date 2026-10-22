@@ -5,9 +5,11 @@
 [resource]
 script = ExtResource("1")
 spell_id = &"WOOD_BIND"
-display_name = "덩굴 속박"
+display_name = "Briarbind"
 attribute = &"WOOD"
 requires_elements = PackedStringArray("WOOD")
+min_cohesion = 0.0
+min_form = 0.0
 mana_cost = 12.0
 damage = 12.0
 effect = &"projectile"

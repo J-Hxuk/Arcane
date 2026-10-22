@@ -44,7 +44,8 @@ func _run() -> void:
 		var result: Dictionary = game._inspect_chant(true)
 		await _click(ui.release_button)
 		await _key(KEY_SHIFT, false)
-		check(ui.trial_panel.visible and ui.trial_banner.text.begins_with("발현 성공 · " + result["spell"].display_name), element + " GUI immediately shows a large named success banner and the actual arena")
+		check(ui.panel.visible and not ui.trial_panel.visible and ui.discovery_text.text.contains(result["spell"].display_name), element + " discovery keeps research view until explicit trial selection")
+		ui.show_trial()
 		check(ui.trial_banner.get_global_rect().end.x < 1140 and ui.arena.get_global_rect().end.y < 686, element + " named success and targets fit the 1160x720 screen")
 		ui.arena.advance(0.12)
 		await _capture("lab_" + element.to_lower() + "_manifestation")
@@ -53,7 +54,7 @@ func _run() -> void:
 		var hit := 0
 		for target in ui.arena.enemies:
 			if target["hp"] < 200.0: hit += 1
-		check((not ui.arena.combat.barriers.is_empty() if element == "EARTH" else hit > 0) and ui.arena.player_hp == 100.0, element + " actual target reaction is visible without hostile attacks")
+		check((not ui.arena.combat.barriers.is_empty() if result["spell"].effect == &"barrier" else hit > 0) and ui.arena.player_hp == 100.0, element + " actual target reaction is visible without hostile attacks")
 		if element in ["WOOD", "FIRE", "WATER"]: await _capture("lab_" + element.to_lower() + "_impact")
 		await _click(ui.journal_button)
 		check(ui.panel.visible and ui.views[0].text.contains("전투 발현"), element + " stored visual replay remains available after real manifestation")
@@ -77,7 +78,7 @@ func _run() -> void:
 		await _click(ui.journal_button)
 	# Add a second genuinely successful ember path through the GUI.
 	game._laboratory_recover()
-	await _chant(T.keys(game.chant_profile, "FIRE", ["ACCUMULATE", "SHAPE", "COMPRESS", "DIRECT"]))
+	await _chant(T.keys(game.chant_profile, "FIRE", ["ACCUMULATE", "DIRECT", "RESONATE"]))
 	await _click(game.laboratory_panel.release_button)
 	await _key(KEY_SHIFT, false)
 	game._enter_dungeon("FIXED")
@@ -89,14 +90,14 @@ func _run() -> void:
 	await _click(hud.next_button)
 	check(hud.page == 1, "GUI paging browses discovered spells")
 	await _click(hud.previous_button)
-	# Entries sort by spell id; FIRE_BLAST, FIRE_EMBER, FIRE_LANCE.
-	await _click(hud.next_button)
+	# Stable internal IDs now sort FIRE_BLAST, FIRE_EMBER, FIRE_LANCE.
+	while hud._entries[hud.page]["spell_id"]!="FIRE_EMBER":await _click(hud.next_button)
 	await _click(hud.variant_button)
 	check(hud.title.text.contains("영창 2/2"), "Representative chant can be changed through the actual HUD")
 	await _chant(T.keys(game.chant_profile, "FIRE"))
 	var mana: float = game.player_mana
 	await _click(hud.favorite_button)
-	check(game.missiles.is_empty() and game.player_mana == mana and game.runes.size() == 5 and game.discovered.entries()[0]["favorite"], "Favorite click with a ready chant never auto-casts, clears input or consumes mana")
+	check(game.missiles.is_empty() and game.player_mana == mana and game.runes.size() == T.keys(game.chant_profile,"FIRE").size() and game.discovered.entries()[0]["favorite"], "Favorite click with a ready chant never auto-casts, clears input or consumes mana")
 	hud.update_current(game.runes, game.cast_feedback)
 	await _capture("dungeon_discovered_chants")
 	await _tap(KEY_ESCAPE)
@@ -152,6 +153,29 @@ func _key(code: Key, pressed: bool) -> void:
 	await process_frame
 
 func _click(control: Control) -> void:
+	var ancestor := control.get_parent()
+	while ancestor != null:
+		if ancestor is ScrollContainer:
+			ancestor.ensure_control_visible(control); await process_frame; await process_frame
+			break
+		ancestor = ancestor.get_parent()
+	# Historical tests now use the public Shift-up / focus LMB controls.
+	if control == game.laboratory_panel.release_button or control == game.laboratory_panel.trial_release_button:
+		var ui = game.laboratory_panel
+		if game.combat_input.mode == game.CombatInput.Mode.FOCUS_CAST:
+			ui.show_trial(false); await process_frame
+		if ui.trial_panel.visible:
+			var point: Vector2 = ui.arena.world_to_screen(ui.arena.player_pos+Vector2(160,0))
+			Input.warp_mouse(point); await process_frame
+			var motion := InputEventMouseMotion.new(); motion.position=point; motion.global_position=point
+			Input.parse_input_event(motion); await process_frame
+		if game.combat_input.mode == game.CombatInput.Mode.FOCUS_CAST:
+			var event := InputEventMouseButton.new(); event.button_index=MOUSE_BUTTON_LEFT
+			event.position=ui.arena.world_to_screen(ui.arena.player_pos+Vector2(160,0)); event.global_position=event.position; event.pressed=true
+			Input.parse_input_event(event); await process_frame
+			event.pressed=false; Input.parse_input_event(event); await process_frame
+		else: await _key(KEY_SHIFT,false)
+		return
 	await process_frame
 	var point := control.get_global_rect().get_center()
 	var motion := InputEventMouseMotion.new()

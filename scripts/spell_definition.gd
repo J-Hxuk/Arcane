@@ -6,24 +6,41 @@ const BaseElements = preload("res://scripts/base_elements.gd")
 
 @export var spell_id: StringName
 @export var display_name: String
+@export var catalog_id: StringName
+@export var english_name: String
 @export var commands: PackedStringArray
 @export var requires_elements: PackedStringArray
 @export var mana_cost := 15.0
 @export var effect: StringName = &"projectile"
 @export var damage := 35.0
 @export var projectile_speed := 460.0
+@export var projectile_width := 0.0 # Additional hit width; zero preserves existing trajectories.
+@export var projectile_radius := 0.0 # Visible damaging core, in world pixels; legacy art retains its adapter.
+@export var variation_visual := false
+@export var visual_glow := 1.0
+@export var visual_density := 1.0
+@export var visual_trail := 1.0
+## Computed physical phenomena; persisted only inside historical cast snapshots.
+@export var formula_effect: Dictionary = {}
 @export var lifetime := 1.8
 @export var projectile_color := Color("9eeaff")
 ## State-based elementary combat spells have no command recipe.
 @export var attribute: StringName = &""
+@export var phenomenon: StringName = &""
+@export var visual_style: StringName = &""
+@export var min_binding_quality := 0.0
 @export var min_mana := 10.0
 @export var min_cohesion := 25.0
 @export var max_cohesion := 100.0
 @export var min_resonance := 0.0
 @export var research_tier := 1
+## 0 basic, 1 lower, 2 intermediate. Research thresholds are separate.
+@export var combat_rank := 0
 @export var min_stability := 50.0
 @export var min_form := 50.0
+@export var max_form := 100.0
 @export var status_effect: StringName = &""
+@export var status_strength:=1.0
 @export var duration := 0.0
 @export var damage_per_second := 0.0
 @export var knockback := 0.0
@@ -39,14 +56,22 @@ func validate_requirements() -> String:
 		unique_elements[element] = true
 	if unique_elements.size() > BaseElements.MAX_COMBINED_ELEMENTS:
 		return "Spell data exceeds the three-base-element limit."
+	if unique_elements.size() != requires_elements.size(): return "Duplicate elemental requirements."
+	if requires_elements.size() > 1:
+		if requires_elements.size() != 2 or not attribute.is_empty() or not commands.is_empty() or phenomenon.is_empty(): return "Invalid fusion lineage data."
+		for element in requires_elements:
+			if element not in BaseElements.OHAENG: return "Neutral cannot enter elemental fusion."
 	if not attribute.is_empty():
 		if not BaseElements.DEFINITIONS.has(str(attribute)) or requires_elements != PackedStringArray([str(attribute)]) or not commands.is_empty():
 			return "Elementary combat data must require exactly its single attribute and no fixed commands."
-		if effect not in [&"projectile", &"barrier", &"shockwave", &"blast"] or status_effect not in [&"", &"burn", &"root", &"stagger"]:
+	if not attribute.is_empty() or requires_elements.size() > 1 or not visual_style.is_empty():
+		if effect not in [&"projectile", &"barrier", &"shockwave", &"blast", &"cone", &"point"] or status_effect not in [&"", &"burn", &"root", &"stagger", &"crystal", &"slow"]:
 			return "Unknown elementary combat effect."
-		for value in [mana_cost, damage, projectile_speed, lifetime, min_mana, min_cohesion, max_cohesion, min_resonance, min_stability, min_form, duration, damage_per_second, knockback, radius, placement_distance]:
+		if not is_finite(knockback): return "Invalid displacement."
+		for value in [mana_cost, damage, projectile_speed, projectile_width, projectile_radius, visual_glow, visual_density, visual_trail, lifetime, min_mana, min_cohesion, max_cohesion, min_resonance, min_stability, min_form, max_form, min_binding_quality, duration, status_strength, damage_per_second, radius, placement_distance]:
 			if not is_finite(value) or value < 0.0: return "Invalid combat spell number."
 		if pierce_targets < 1 or lifetime <= 0.0 or (effect == &"projectile" and projectile_speed <= 0.0): return "Invalid combat spell lifetime/projectile."
 		if effect in [&"barrier", &"shockwave", &"blast"] and (radius <= 0.0 or duration <= 0.0): return "Invalid area spell."
 		if max_cohesion < min_cohesion or max_cohesion > 100.0 or min_resonance > 100.0 or research_tier < 1: return "Invalid state requirement range."
+		if max_form < min_form or max_form > 100.0 or min_binding_quality > 100.0: return "Invalid fusion structure range."
 	return ""

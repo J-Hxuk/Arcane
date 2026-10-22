@@ -1,0 +1,21 @@
+{
+  "status":"PROPOSAL_ONLY_NOT_REGISTERED_OR_RUNTIME_LOADED",
+  "maximum_inputs":5,
+  "spells":[
+    {"id":"OH-061","actions":["ACCUMULATE","SHAPE","DIRECT"],"status":"existing"},
+    {"id":"OH-062","actions":["ACCUMULATE","SHAPE","STABILIZE","DIRECT"],"status":"existing"},
+    {"id":"OH-063","actions":["ACCUMULATE","ACCUMULATE","DIRECT","SHAPE"],"status":"existing"},
+    {"id":"OH-064","actions":["ACCUMULATE","COMPRESS","DIRECT","DIRECT"],"status":"proposal"},
+    {"id":"OH-065","actions":["ACCUMULATE","SHAPE","DIRECT","EXPAND"],"status":"proposal"},
+    {"id":"OH-066","actions":["ACCUMULATE","SHAPE","STABILIZE","CYCLE"],"status":"proposal"},
+    {"id":"OH-067","actions":["ACCUMULATE","SHAPE","STABILIZE","CYCLE","ANCHOR"],"status":"proposal"},
+    {"id":"OH-068","actions":["ACCUMULATE","SHAPE","CYCLE","DIRECT","STABILIZE"],"status":"prototype_alias_proposal"},
+    {"id":"OH-069","actions":["ACCUMULATE","SHAPE","DIRECT","SPLIT","STABILIZE"],"status":"proposal"},
+    {"id":"OH-070","actions":["ACCUMULATE","COMPRESS","DIRECT","STABILIZE"],"status":"prototype_alias_proposal"},
+    {"id":"OH-071","actions":["ACCUMULATE","SHAPE","DIRECT","ANCHOR","STABILIZE"],"status":"proposal"},
+    {"id":"OH-072","actions":["ACCUMULATE","COMPRESS","SHAPE","STABILIZE","ANCHOR"],"status":"prototype_alias_proposal"},
+    {"id":"OH-073","actions":["ACCUMULATE","ACCUMULATE","SHAPE","CYCLE","EXPAND"],"status":"proposal"},
+    {"id":"OH-074","actions":["ACCUMULATE","COMPRESS","COMPRESS","DIRECT","STABILIZE"],"status":"proposal"},
+    {"id":"OH-075","actions":["ACCUMULATE","SHAPE","SPLIT","CYCLE","STABILIZE"],"status":"proposal"}
+  ]
+}

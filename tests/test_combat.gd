@@ -22,6 +22,7 @@ func _run() -> void:
 		"bank": 100, "injury": 0, "armor": 100, "corpse": {}, "learned": ["EMBER"]}))
 	fixture.close()
 	game = SCENE.instantiate()
+	game.legacy_wasd_enabled = true # Explicit developer comparison, not default controls.
 	game.save_path = TEST_SAVE
 	game.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(game)
@@ -170,11 +171,12 @@ func _test_casting() -> void:
 	_check(game.missiles.size() == 1, "Repeated LMB requires fresh direct command input")
 	_tap(KEY_Q, 21.14)
 	_tap(KEY_E, 21.16)
-	game.player_mana = 0.0
+	var debt_floor:float=-game.ManaOverdraw.limit(game._max_mana())
+	game.player_mana = 0;game.mana_debt=-debt_floor
 	_mouse(MOUSE_BUTTON_LEFT, 21.18)
-	_check(game.missiles.size() == 1 and game.player_mana == 0.0 and game.runes == ["Q", "E"] and game.cast_feedback.contains("Insufficient mana"), "Insufficient mana preserves the formula and spawns no projectile")
-	_mouse(MOUSE_BUTTON_RIGHT, 21.2)
-	_check(game.runes.is_empty() and game.combat_input.mode == CombatInput.Mode.MOBILE_CAST, "RMB clears mobile commands while Shift remains held")
+	_check(game.missiles.size() == 1 and game.player_mana == 0 and game.mana_debt == -debt_floor and game.runes == ["Q", "E"] and game.cast_feedback.contains("마나 부족"), "Exceeding the mental overdraw limit preserves the formula and spawns no projectile")
+	_tap(KEY_ESCAPE, 21.2)
+	_check(game.runes.is_empty() and game.combat_input.mode == CombatInput.Mode.MOBILE_CAST, "Esc clears mobile commands while Shift remains held")
 	_tap(KEY_Q, 21.22)
 	_tap(KEY_R, 21.24)
 	_mouse(MOUSE_BUTTON_LEFT, 21.26)
@@ -196,8 +198,8 @@ func _test_casting() -> void:
 	composite.requires_elements = PackedStringArray(["FIRE", "WATER", "WOOD"])
 	game.spell_book.definitions.append(composite)
 	var tokens: Array[String] = ["W", "A"]
-	_check(game.spell_book.inspect(tokens, PackedStringArray(["FIRE", "WATER"]))["state"] == "locked", "Composite formula requires every listed element")
-	_check(game.spell_book.inspect(tokens, composite.requires_elements)["state"] == "ready", "Composite formula becomes accessible with all requirements")
+	_check(game.spell_book.inspect(tokens, PackedStringArray(["FIRE", "WATER"]))["state"] == "invalid_data", "Fixed-key composite formula is invalid under the binding grammar")
+	_check(game.spell_book.inspect(tokens, composite.requires_elements)["state"] == "invalid_data", "Even all slots cannot authorize a fixed-key composite bypass")
 	composite.requires_elements.append("EARTH")
 	_check(game.spell_book.inspect(tokens, composite.requires_elements)["state"] == "invalid_data", "Spell data cannot bypass the fixed three-base-element limit")
 	composite.requires_elements = PackedStringArray(["LIGHTNING"])
@@ -214,8 +216,8 @@ func _test_routing_and_reset() -> void:
 	_check(game.runes.size() == 32 and game.cast_feedback.contains("buffer full"), "Long command input is bounded with visible overflow feedback")
 	game.notification(MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT)
 	_check(game.combat_input.mode == CombatInput.Mode.NORMAL and game.runes.is_empty() and game.combat_input.movement_axis() == Vector2.ZERO, "Application focus loss clears held inputs, mode and command buffer")
-	_tap(KEY_F, 33.0)
-	_check(game.game_state == "HUB", "F in NORMAL still returns through the gate")
+	_tap(KEY_E, 33.0)
+	_check(game.game_state == "HUB", "E in NORMAL returns through the gate")
 	game._enter_dungeon("FIXED")
 	game.enemies.clear()
 	_key(KEY_SHIFT, true, 34.0)
@@ -227,7 +229,8 @@ func _test_routing_and_reset() -> void:
 	game._reset_combat_input()
 	_focus(35.0)
 	_mouse(MOUSE_BUTTON_RIGHT, 35.2)
-	_check(game.combat_input.mode == CombatInput.Mode.NORMAL, "RMB exits focus without entering old RMB casting mode")
+	_check(game.combat_input.mode == CombatInput.Mode.FOCUS_CAST and not game.navigation.active, "RMB is ignored in focus; Esc is the cancel input")
+	_tap(KEY_ESCAPE, 35.3)
 
 func _test_effects() -> void:
 	game.missiles.clear()

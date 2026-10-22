@@ -61,7 +61,7 @@ func _run() -> void:
 
 func _test_model() -> void:
 	var model := Research.new()
-	_check(Elements.DEFINITIONS.size() == 6, "Exactly six independent base resources")
+	_check(Elements.DEFINITIONS.size() == 5 and Elements.NEUTRAL_DEFINITIONS.has("VOID"), "Five elemental resources and a separate legacy neutral resource")
 	for element in Elements.DEFINITIONS:
 		_check(str(Elements.DEFINITIONS[element].element_id) == element, "Stable resource ID: " + element)
 	_check(model.main_attribute == null and model.researched_base_elements.is_empty(), "New research starts unawakened with zero slots")
@@ -74,7 +74,7 @@ func _test_model() -> void:
 	_check(model.researched_base_elements.is_empty(), "Knowledge sources never occupy slots")
 	_check(model.request_research("FIRE")["state"] == "awakening_required" and model.start_element_research("FIRE", 99) == "confirmation_required", "Old request cannot bypass the ritual")
 	_check(model.start_element_research("LIGHTNING", 42) == "invalid_element", "Derived concept is not a base slot")
-	_check(model.load_data({"researched_base_elements": ["WOOD", "WATER", "VOID"], "innate_affinity": model.innate_affinity}).is_empty(), "Three legacy choices load losslessly")
+	_check(model.load_data({"researched_base_elements": ["WOOD", "WATER", "EARTH"], "innate_affinity": model.innate_affinity}).is_empty(), "Three legacy elemental choices load losslessly")
 	_check(model.main_attribute == null and model.researched_base_elements.size() == 3, "Legacy roles are not guessed")
 	var exposed_elements := model.researched_base_elements
 	exposed_elements.append("FIRE")
@@ -97,8 +97,8 @@ func _test_requirements() -> void:
 	tokens = ["W"]
 	_check(book.inspect(tokens)["state"] == "ready" and enhancement.requires_elements.is_empty(), "Attribute-independent enhancement needs no slot or VOID")
 	enhancement.requires_elements = PackedStringArray(["WOOD", "WATER"])
-	_check(book.inspect(tokens, PackedStringArray(["WOOD"]))["state"] == "locked", "Composite requires every constituent base element")
-	_check(book.inspect(tokens, PackedStringArray(["WOOD", "WATER"]))["state"] == "ready", "Derived/composite access uses existing base slots")
+	_check(book.inspect(tokens, PackedStringArray(["WOOD"]))["state"] == "invalid_data", "Fixed-key composite access cannot bypass final-state binding")
+	_check(book.inspect(tokens, PackedStringArray(["WOOD", "WATER"]))["state"] == "invalid_data", "Owning slots never makes a fixed composite recipe valid")
 
 func _test_migration_and_ui() -> void:
 	var path := DIR + "legacy_" + serial + ".json"
@@ -108,7 +108,7 @@ func _test_migration_and_ui() -> void:
 	var original_bytes := FileAccess.get_file_as_bytes(path)
 	var game := _game(path)
 	_check(game.save_writable and game.magic_talent == 67 and game.body_talent == 34, "Legacy talents preserved without reroll")
-	_check(game.research.innate_affinity.is_empty() and game.research.main_attribute == null and game.research.researched_base_elements.size() == 3, "Legacy affinity stays unrecorded and locked choices get no guessed main")
+	_check(game.research.innate_affinity.is_empty() and game.research.main_attribute == null and game.research.researched_base_elements.size() == 2 and game.research.to_data()["neutral_mana"]["legacy_wave_unlocked"], "Legacy affinity remains unknown; VOID entitlement survives outside two elemental slots")
 	_check(FileAccess.get_file_as_bytes(path + ".v0.bak") == original_bytes, "Migration backup preserves original bytes")
 	var migrated: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
 	var all_preserved := true
@@ -160,8 +160,9 @@ func _test_researched_combat(game: Game) -> void:
 	_event(game, KEY_SHIFT, true, 1.0)
 	_event(game, KEY_D, true, 1.01)
 	var origin := game.player_pos
+	game._request_destination(origin + Vector2(60, 0))
 	game._process(0.05)
-	_check(game.player_pos.x > origin.x and game.runes.is_empty(), "Three researched slots: mobile WASD still moves only")
+	_check(game.player_pos.x > origin.x and game.runes.is_empty(), "Three researched slots: mobile RMB destination movement is independent of commands")
 	_event(game, KEY_D, false, 1.02)
 	_event(game, KEY_Q, true, 1.03)
 	_event(game, KEY_Q, false, 1.04)
@@ -199,7 +200,7 @@ func _test_researched_combat(game: Game) -> void:
 	game.spell_book.definitions.append(spell)
 	game.runes = ["W"]
 	game._show_rune_feedback()
-	_check(game.cast_feedback.contains("ready"), "Main passes committed elements to composite requirement evaluation")
+	_check(game._inspect_chant()["state"]=="invalid_data", "Main rejects fixed-key composite data before casting without exposing internal IDs in public feedback")
 	spell.requires_elements = PackedStringArray(["FIRE"])
 	var count := game.missiles.size()
 	game._cast_spell()
@@ -212,7 +213,7 @@ func _test_new_character() -> void:
 	var before := game.research.to_data()
 	var magic := game.magic_talent
 	var body := game.body_talent
-	_check(game.research.innate_affinity.size() == 6 and game.research.researched_base_elements.is_empty(), "Only a new character gets six provisional innate scores and zero research")
+	_check(game.research.innate_affinity.size() == 5 and game.research.researched_base_elements.is_empty(), "Only a new character gets five provisional innate scores and zero research")
 	game.free()
 	game = _game(path)
 	_check(_json_equal(game.research.to_data(), before) and game.magic_talent == magic and game.body_talent == body, "Reload never regenerates new character talents or affinity")
@@ -237,9 +238,9 @@ func _test_protection() -> void:
 
 func _verify_restart() -> void:
 	var game := _game(RESTART)
-	_check(game.research.researched_base_elements == PackedStringArray(["WOOD", "WATER", "VOID"]), "Separate process restores all three permanent slots")
+	_check(game.research.researched_base_elements == PackedStringArray(["WOOD", "WATER"]) and game.research.to_data()["neutral_mana"]["legacy_wave_unlocked"], "Separate process restores two elemental slots and neutral entitlement")
 	_check(_json_equal(game.research.innate_affinity, {"WOOD": 23, "VOID": 87, "legacy_note": "retain"}), "Separate process restores affinity verbatim without reroll")
 	_check(game.research.research_clues.size() == 1 and game.research.to_data()["unknown_research_field"] == {"keep": true}, "Separate process restores clues and unknown research fields")
 	_check(game.magic_talent == 67 and game.body_talent == 34 and game.bank_gold == 234 and _json_equal(game.corpse, _fixture()["corpse"]) and game.learned_spells.has("EMBER"), "Separate process preserves original character and corpse")
-	_check(game.research.start_element_research("FIRE", 123) == "slots_full" and game._save_character(), "Permanent lock remains enforced and saveable after restart")
+	_check(game.research.start_element_research("FIRE", 123) == "confirmation_required" and game.research.researched_base_elements.size() == 2 and game._save_character(), "Neutral slot release does not bypass a new elemental ritual after restart")
 	game.free()

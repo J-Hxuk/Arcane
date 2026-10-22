@@ -52,6 +52,7 @@ func _run() -> void:
 	await _key(KEY_E, false)
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
+	click.position = game.player_pos # World clicks must be inside the combat viewport.
 	click.pressed = true
 	Input.parse_input_event(click)
 	await process_frame

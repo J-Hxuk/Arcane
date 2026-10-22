@@ -84,6 +84,8 @@ func refresh() -> void:
 	var index := int(entry.get("representative", 0))
 	title.text = "%s · %d/%d · 영창 %d/%d" % [entry["name"], page + 1, _entries.size(), index + 1, entry["recipes"].size()]
 	recipe.text = Book.format_inputs(entry["recipes"][index]["inputs"])
+	recipe.text+=" · 새 문법 시제품 v8 · 별도 개인 시험표" if int(entry["recipes"][index].get("rules_version",1))>=8 else " · 기존 영창 호환 기록"
+	if int(entry["recipes"][index].get("rules_version",1))<7:recipe.text+=" · 이전 연구 기록: 현재 조건으로 재관측 권장"
 	recipe.tooltip_text = recipe.text + "\n+는 입력 유지가 겹친 구간입니다. 클릭 자동 시전은 없습니다."
 	favorite_button.text = "★ 즐겨찾기" if entry["favorite"] else "☆ 즐겨찾기"
 	previous_button.disabled = page <= 0

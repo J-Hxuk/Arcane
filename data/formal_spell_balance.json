@@ -1,0 +1,21 @@
+{
+ "version":1,
+ "spells":{
+  "OH-001":{"role":"지속 속박","damage":18,"mana_cost":11,"duration":3.4,"projectile_speed":360,"lifetime":2.5},
+  "OH-002":{"role":"근거리 다수 둔화","damage":14,"mana_cost":6,"radius":145,"duration":1.8},
+  "OH-003":{"role":"직선 순간 화력","damage":36,"mana_cost":11,"projectile_speed":650,"lifetime":1.1},
+  "OH-016":{"role":"지속 연소","damage":24,"mana_cost":12,"damage_per_second":6,"duration":3.2},
+  "OH-017":{"role":"부채꼴 연소","damage":20,"mana_cost":11,"radius":155,"damage_per_second":5,"duration":2.5},
+  "OH-018":{"role":"고비용 지점 폭발","damage":54,"mana_cost":18,"radius":45,"placement_distance":260},
+  "OH-031":{"role":"진로와 투사체 차단","mana_cost":12,"radius":34,"duration":7,"placement_distance":82},
+  "OH-033":{"role":"근거리 광역 경직","damage":20,"mana_cost":10,"radius":145,"duration":1,"knockback":55},
+  "OH-046":{"role":"장거리 다중 관통","damage":42,"mana_cost":16,"pierce_targets":4,"projectile_speed":700,"lifetime":1.6},
+  "OH-047":{"role":"빠른 원거리 견제","damage":30,"mana_cost":9,"projectile_speed":780,"lifetime":1},
+  "OH-061":{"role":"피해와 거리 확보","damage":22,"mana_cost":9,"knockback":140,"duration":0.5},
+  "OH-062":{"role":"정밀 장거리 투사체","damage":28,"mana_cost":8,"projectile_speed":640,"lifetime":1.2},
+  "OH-063":{"role":"주변 다수 밀어내기","damage":18,"mana_cost":11,"radius":155,"knockback":160},
+  "MANA_BOLT":{"role":"무속성 단일 화력","damage":28,"mana_cost":12,"projectile_speed":500,"lifetime":1.5},
+  "ICE_CRYSTAL_NEEDLE":{"role":"결정 관통과 구속","damage":44,"mana_cost":19,"duration":1.2,"pierce_targets":2},
+  "WIND_PRESSURE_BOLT":{"role":"강한 밀어내기","damage":22,"mana_cost":15,"knockback":210,"duration":0.6}
+ }
+}

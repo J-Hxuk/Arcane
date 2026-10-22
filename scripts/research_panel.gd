@@ -20,8 +20,7 @@ var writable := true
 func setup(model: CharacterResearch) -> void:
 	research = model
 	layer = 10
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Malgun Gothic", "Noto Sans CJK KR"])
+	var font:Font=preload("res://scripts/ui_fonts.gd").UI
 	var theme := Theme.new()
 	theme.default_font = font
 	theme.default_font_size = 17
@@ -61,9 +60,9 @@ func setup(model: CharacterResearch) -> void:
 	summary = Label.new()
 	content.add_child(summary)
 	var help := Label.new()
-	help.text = "주속성은 연구실에서 단서·공명 재현·직접 개화 의식·최종 확인으로 확정합니다.\n열람·관찰·단서·기초 마력탄은 슬롯을 쓰지 않습니다. 보조속성 획득은 다음 단계입니다."
+	help.text = "주속성과 첫 보조속성은 연구실에서 단서·공명 재현·직접 의식·영구 확인으로 확정합니다.\n보조는 환경·간섭 안정화 연구도 필요합니다. 열람·관찰·중립 술식은 슬롯을 쓰지 않습니다."
 	content.add_child(help)
-	for element in BaseElements.DEFINITIONS:
+	for element in BaseElements.OHAENG:
 		var definition = BaseElements.DEFINITIONS[element]
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 12)
@@ -122,15 +121,17 @@ func is_open() -> bool:
 
 func refresh() -> void:
 	var chosen := PackedStringArray()
-	for element in research.researched_base_elements:
+	for element in research.active_elements:
 		chosen.append(BaseElements.DEFINITIONS[element].display_name)
-	summary.text = "확정 연구 %d / 3   %s" % [chosen.size(), "없음" if chosen.is_empty() else " · ".join(chosen)]
+	summary.text = "활성 속성 %d / 2   %s" % [research.active_elements.size(), "없음" if chosen.is_empty() else " · ".join(chosen)]
 	summary.text += "  | 주속성: " + ("미개화" if research.main_attribute == null else BaseElements.DEFINITIONS[research.main_attribute].display_name)
+	if not research.legacy_committed_attributes.is_empty():summary.text+=" · 호환 기록 %d개(활성 권한 아님)"%research.legacy_committed_attributes.size()
+	if research.to_data().has("inactive_attribute_history"):summary.text+=" · 이전 추가 보조속성은 비활성 기록으로 보존"
 	for element in rows:
 		var row: Dictionary = rows[element]
-		row["label"].text = "%s | %s | 친화성: 관찰 필요" % [row["definition"].display_name, row["definition"].domain]
+		row["label"].text = "%s | %s | 단서와 공명 관측으로 연구" % [row["definition"].display_name, row["definition"].domain]
 		var state := research.eligibility(element)
-		row["start"].text = {"awakening_required": "개화 의식 필요", "auxiliary_deferred": "보조 획득 보류", "already_researched": "기존 확정 연구", "slots_full": "3속성 잠금"}.get(state, state)
+		row["start"].text = {"awakening_required": "개화 의식 필요", "auxiliary_awakening_required": "보조 의식 필요", "already_researched": "기존 확정 연구", "slots_full": "2속성 잠금"}.get(state, state)
 		row["start"].disabled = not writable or state != "available"
 		row["clue"].text = "연구실 서고"
 		row["clue"].disabled = true
@@ -145,9 +146,9 @@ func request(element: String) -> void:
 		return
 	_element = element
 	_ticket = result["ticket"]
-	var count := research.researched_base_elements.size() + 1
-	confirmation.dialog_text = "%s 연구를 영구 확정합니까?\n슬롯 %d / 3을 영구 점유하며 취소·교체할 수 없습니다.\n%s" % [BaseElements.DEFINITIONS[element].display_name, count,
-		"마지막 슬롯입니다. 확정 후 다른 기본 속성의 연구를 시작할 수 없습니다." if count == 3 else "선천적 친화성과 관계없이 직접 선택하는 연구입니다."]
+	var count := research.active_elements.size() + 1
+	confirmation.dialog_text = "%s 연구를 영구 확정합니까?\n슬롯 %d / 2을 영구 점유하며 취소·교체할 수 없습니다.\n%s" % [BaseElements.DEFINITIONS[element].display_name, count,
+		"마지막 슬롯입니다. 확정 후 다른 기본 속성의 연구를 시작할 수 없습니다." if count == 2 else "선천적 친화성과 관계없이 직접 선택하는 연구입니다."]
 	confirmation.popup_centered(Vector2i(760, 210))
 	# Accidental Enter must not confirm immediately when opening the dialog.
 	confirmation.get_cancel_button().grab_focus()

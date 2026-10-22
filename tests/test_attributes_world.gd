@@ -1,0 +1,66 @@
+extends "res://tests/attribute_helpers.gd"
+func choose_attribute(element:Variant)->void:
+	await key(KEY_ALT,true);await tap(KEY_1+game.ATTRIBUTE_SHORTCUTS.find(element));await key(KEY_ALT,false)
+func wheel(up:=false,alt:=false)->void:
+	var event:=InputEventMouseButton.new();event.button_index=MOUSE_BUTTON_WHEEL_UP if up else MOUSE_BUTTON_WHEEL_DOWN;event.pressed=true;event.alt_pressed=alt;event.position=Vector2(580,350);event.global_position=event.position;Input.parse_input_event(event);await process_frame
+	event.pressed=false;Input.parse_input_event(event);await process_frame
+func run()->void:
+	root.size=Vector2i(1160,720)
+	var path:=fresh();await process_frame
+	check(game.research.awakened_attributes==["WATER"],"World fixture has only its original permanent awakening")
+	var zoom:Vector2=game.world_camera.zoom;await wheel();check(game.research.main_attribute=="WATER" and game.world_camera.zoom.x<zoom.x,"Ordinary wheel zooms without changing equipment")
+	await tap(KEY_TAB);check(game.research.selected_attribute_slot=="auxiliary" and not game._world_modal_open() and not game._developer_menu_visible(),"Tab instantly selects auxiliary without opening UI")
+	await choose_attribute(null);check(game.research.auxiliary_attributes.is_empty(),"One-element character keeps auxiliary none")
+	await tap(KEY_TAB);game.research.developer_reset("all_elements","");game._save_character();game._change_active_attributes("WOOD",null)
+	for element in ["FIRE","EARTH","METAL","WATER","WOOD"]:
+		await choose_attribute(element);check(game.research.main_attribute==element,"Alt numeric shortcut selects awakened element "+element)
+	await choose_attribute("WATER");check(game.research.main_attribute=="WATER","Water shortcut selects water directly")
+	await tap(KEY_TAB);await choose_attribute("WOOD");check(Array(game.research.auxiliary_attributes)==["WOOD"],"Auxiliary selects a distinct awakening")
+	await choose_attribute(null);check(game.research.auxiliary_attributes.is_empty(),"Auxiliary none remains a selectable entry")
+	game._change_active_attributes("WATER","METAL");await tap(KEY_TAB);await choose_attribute("METAL");await choose_attribute("EARTH")
+	check(game.discovered.to_data().get("spells",{}).is_empty() and game.research.to_data().binding_studies.is_empty(),"Equipment selection does not discover spells or study a fusion binding")
+	check(game.research.main_attribute=="EARTH" and Array(game.research.auxiliary_attributes)==["METAL"],"Main shortcuts reject duplicate auxiliary element")
+	await wheel(false,true);check(game.world_camera.zoom.x<zoom.x and game.research.main_attribute=="EARTH","Alt plus wheel retains camera zoom without changing equipment")
+	await tap(KEY_I);var before:Dictionary=game.research.to_data();var before_zoom:Vector2=game.world_camera.zoom;await wheel();await tap(KEY_TAB)
+	check(Equal.equal(before,game.research.to_data()) and game.world_camera.zoom==before_zoom and game.inventory_dialog.visible,"Inventory owns wheel and Tab while open")
+	await tap(KEY_I);game.spell_record_hud.expanded=true;before=game.research.to_data();await wheel();await tap(KEY_TAB)
+	check(Equal.equal(before,game.research.to_data()),"Expanded discovery journal owns scrolling and Tab")
+	game.spell_record_hud.expanded=false;game._change_active_attributes("WATER","METAL")
+	await key(KEY_SHIFT,true);await wheel();check(game.research.main_attribute=="WATER","Attribute session locks immediately on Shift before first rune")
+	var actions:Array=["ACCUMULATE","SHAPE","DIRECT"]
+	for event in E.inputs(game._active_profile(),actions):await tap(OS.find_keycode_from_string(event.key))
+	var original:Dictionary=game._inspect_chant(true);var mana:float=game.player_mana
+	check(not game._change_active_attributes("WOOD",null),"Direct controller change during chant is rejected")
+	game.research.set_active("WOOD",null) # Simulate a rogue model mutation; session remains authoritative.
+	var frozen:Dictionary=game._inspect_chant(true)
+	check(frozen.identity=="OH-061" and frozen.mana_cost==original.mana_cost and frozen.final_state==original.final_state,"Even external model mutation cannot change an in-progress spell or resource quote")
+	game.research.set_active("WATER","METAL");await tap(KEY_ESCAPE);await key(KEY_SHIFT,false)
+	check(game.player_mana==mana and game.runes.is_empty() and game._chant_session_context.is_empty(),"Esc releases session snapshot without spending mana")
+	await choose_attribute("WOOD");check(game.research.main_attribute=="WOOD","Attribute shortcuts become available after cancellation")
+	await tap(KEY_SHIFT);await tap(KEY_SHIFT);check(game.combat_input.mode==game.CombatInput.Mode.FOCUS_CAST,"Double Shift still enters focus")
+	await wheel();check(game.research.main_attribute=="WOOD","Focus session also freezes equipped attributes")
+	await tap(KEY_ESCAPE);game._change_active_attributes("WATER","METAL")
+	# Focus can remain active between completed casts; the next cast starts a new snapshot.
+	await tap(KEY_SHIFT);await tap(KEY_SHIFT)
+	for event in E.inputs(game._active_profile(),actions):await tap(OS.find_keycode_from_string(event.key))
+	var quote:Dictionary=game._inspect_chant(true);mana=game.player_mana;game._cast_spell()
+	check(is_equal_approx(mana-game.player_mana,quote.mana_cost) and game.combat_input.mode==game.CombatInput.Mode.FOCUS_CAST,"Focus casts retain the exact frozen resource quote")
+	await choose_attribute("WOOD");check(game.research.main_attribute=="WOOD","Completed focus cast permits changing attributes for the next cast")
+	await tap(KEY_ESCAPE);game._change_active_attributes("WATER","METAL")
+	if DisplayServer.get_name()!="headless":await capture("world_attribute_slots")
+	game.player_pos=game.Layout.LAB_DOOR;game._enter_laboratory();game.laboratory_panel.arena.set_process(false);game._select_lab_observation("METAL")
+	check(game.game_state=="LAB","Laboratory equality assertion runs inside actual laboratory")
+	check(game.research.main_attribute=="METAL" and game.research.auxiliary_attributes.is_empty(),"Existing lab target selects awakened main without duplicate equipment")
+	chant(["ACCUMULATE","COMPRESS","DIRECT"]);var lab:Dictionary=game._inspect_chant(true);game._clear_chant();game._leave_laboratory();chant(["ACCUMULATE","COMPRESS","DIRECT"]);var world:Dictionary=game._inspect_chant(true)
+	check(lab.identity==world.identity and lab.mana_cost==world.mana_cost and lab.final_state==world.final_state,"Laboratory and world use identical explicit-loadout interpreter")
+	game._clear_chant();game._start_developer_test("WATER_METAL","LAB");var original_disk:=FileAccess.get_file_as_bytes(path)
+	check(game._developer_action("research_all_elements") and game.research.awakened_attributes.size()==5,"F2 temporary character can awaken all five")
+	check(game._developer_force_loadout("METAL","FIRE") and game.research.main_attribute=="METAL","F2 can force a distinct awakened loadout")
+	check(not game._developer_force_loadout("METAL","METAL"),"Developer force still rejects duplicate slots")
+	check(game._developer_action("loadout_check") and game.developer_metrics.loadout_combinations.size()==25,"F2 runs all twenty-five loadout combinations")
+	game._developer_action("research_selections");check(game.research.auxiliary_attributes.is_empty(),"F2 resets equipment independently of awakenings")
+	game.developer_panel.elements.select(game.DeveloperTestData.OPTIONS.find("FIRE"));game._developer_action("research_only")
+	check(game.research.awakened_attributes==["FIRE"] and game.research.main_attribute=="FIRE","F2 can isolate only the selected awakened element")
+	if DisplayServer.get_name()!="headless":await tap(KEY_F2);await capture("developer_attribute_controls");await tap(KEY_F2)
+	game._end_developer_test();check(FileAccess.get_file_as_bytes(path)==original_disk and game.research.awakened_attributes.size()==5,"Ending developer combinations restores original equipment and disk bytes")
+	await finish("ATTRIBUTES WORLD")

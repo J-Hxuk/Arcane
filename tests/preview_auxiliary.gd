@@ -1,0 +1,48 @@
+extends "res://tests/preview_fusion.gd"
+const B = preload("res://tests/test_fusion_b.gd")
+func run() -> void:
+	if DisplayServer.get_name() == "headless": quit(1); return
+	root.size = Vector2i(1160, 720)
+	var path := DIR + "window_auxiliary.json"
+	A.write(path, F.fixture("WATER", 1787453028))
+	game = Scene.instantiate()
+	game.save_path = path
+	root.add_child(game)
+	game.set_process(false)
+	await create_timer(0.2).timeout
+	game._enter_laboratory()
+	var ui = game.laboratory_panel.awakening_panel
+	ui.open()
+	await select(ui.target, 3)
+	check(ui.selected_element() == "METAL", "Actual auxiliary selector chooses METAL")
+	for button in [ui.book_button, ui.mentor_button, ui.environment_button]: await click(button)
+	check(game.research.researched_base_elements.size() == 1 and ui.ritual_button.disabled, "Actual book/mentor/environment controls collect clues without consuming a slot")
+	await capture("auxiliary_clues")
+	await click(ui.back_button)
+	var keys := B.ritual(game.chant_profile, "METAL")
+	for i in 2:
+		game._laboratory_recover()
+		root.gui_release_focus()
+		await key(KEY_SHIFT, true)
+		for token in keys: await tap(OS.find_keycode_from_string(token))
+		await click(game.laboratory_panel.release_button if game.laboratory_panel.panel.visible else game.laboratory_panel.trial_release_button)
+		await key(KEY_SHIFT, false)
+	check(game.research.stable_count("METAL") == 2 and game.research.interference_count("METAL") == 2, "Actual window chants reproduce auxiliary resonance and interference control")
+	ui.open()
+	await click(ui.ritual_button)
+	game._laboratory_recover()
+	await key(KEY_SHIFT, true)
+	for token in keys: await tap(OS.find_keycode_from_string(token))
+	await click(game.laboratory_panel.release_button if game.laboratory_panel.panel.visible else game.laboratory_panel.trial_release_button)
+	await key(KEY_SHIFT, false)
+	check(ui.confirmation.visible and game.research.auxiliary_attributes.is_empty(), "Actual direct ritual opens the permanent auxiliary confirmation before slot assignment")
+	await capture("auxiliary_confirmation")
+	await click(ui.confirmation.get_ok_button())
+	check(game.research.main_attribute == "WATER" and game.research.auxiliary_attributes == PackedStringArray(["METAL"]), "GUI confirmation commits only METAL auxiliary, retaining WATER main")
+	ui.open()
+	await click(ui.binding_button)
+	check("METAL+WATER" in game.research.simulation_context()["binding_pairs"], "Actual UI studies binding only after permanent auxiliary awakening")
+	await capture("auxiliary_binding_study")
+	game.free()
+	print("AUXILIARY WINDOW: %d checks, %d failures" % [checks, failures])
+	quit(0 if failures == 0 else 1)

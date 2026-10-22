@@ -5,9 +5,10 @@
 [resource]
 script = ExtResource("1")
 spell_id = &"VOID_WAVE"
-display_name = "힘의 파동"
-attribute = &"VOID"
-requires_elements = PackedStringArray("VOID")
+display_name = "VOID_WAVE"
+visual_style = &"NEUTRAL_MOTION"
+min_cohesion = 0.0
+min_form = 0.0
 mana_cost = 18.0
 damage = 16.0
 effect = &"shockwave"

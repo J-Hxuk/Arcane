@@ -47,6 +47,7 @@ func _run() -> void:
 		await process_frame
 		await _chant(element, false)
 		check(game.combat_input.mode == game.CombatInput.Mode.MOBILE_CAST and game._inspect_chant()["state"] == "ready", element + " mobile mode interprets personal chant")
+		var evaluated=game._inspect_chant(true)["spell"]
 		await _release(element)
 		await _key(KEY_SHIFT, false)
 		game._update_missiles(0.6, 1.0)
@@ -69,11 +70,11 @@ func _run() -> void:
 				check(game.player_pos.distance_to(position) >= 35.0 and game.enemies[0]["pos"].distance_to(position) >= 35.0 and game.missiles.is_empty() and game.player_hp == 100.0, "Window EARTH: barrier blocks both actors and hostile shot")
 				overlay.text = "TEST CHARACTER / EARTH: 5s barrier; player / enemy / shot blocked"
 			"METAL":
-				check(game.enemies[0]["hp"] == 76.0 and game.enemies[1]["hp"] == 76.0 and game.enemies[2]["hp"] == 76.0 and game.enemies[3]["hp"] == 100.0, "Window METAL: three pierced targets and untouched fourth")
+				check(is_equal_approx(game.enemies[0]["hp"],100-evaluated.damage) and is_equal_approx(game.enemies[1]["hp"],100-evaluated.damage) and is_equal_approx(game.enemies[2]["hp"],100-evaluated.damage) and game.enemies[3]["hp"] == 100.0, "Window METAL: state-tuned damage, three pierced targets and untouched fourth")
 				overlay.text = "TEST CHARACTER / METAL: four targets HP [76, 76, 76, 100]; 3-target pierce"
 			"WATER":
-				check(game.enemies[0]["hp"] == 90.0 and game.enemies[0]["pos"].distance_to(target_positions[0] + last_aim * 100.0) < 0.01, "Window WATER: impact and 100-unit displacement")
-				overlay.text = "TEST CHARACTER / WATER: HP 90; target pushed 100 units along actual aim"
+				check(game.enemies[0]["hp"] == 88.0 and game.enemies[0]["pos"].distance_to(target_positions[0] + last_aim * evaluated.knockback) < 0.01 and game.enemies[0].get("stagger_remaining", 0.0) > 0, "Window WATER: impact, state-tuned displacement and interrupt")
+				overlay.text = "TEST CHARACTER / WATER: HP 88; pushed 135 units + 0.45s interrupt"
 			"VOID":
 				check(game.enemies[0]["hp"] == 84.0 and game.enemies[1]["hp"] == 84.0 and game.enemies[2]["hp"] == 100.0 and game.enemies[0]["stagger_remaining"] > 0.0, "Window VOID: radial multi-target impact + stagger")
 				overlay.text = "TEST CHARACTER / VOID: radial HP [84, 84, 100]; 0.65s stagger + push"
