@@ -11,6 +11,9 @@ func cell(view, field: String, column: int) -> String:
 	return ""
 
 func toggle(control: BaseButton) -> void:
+	# Nested scroll/layout containers finish their deferred size changes first.
+	await process_frame
+	await process_frame
 	if DisplayServer.get_name()=="headless": control.button_pressed=not control.button_pressed
 	else: await click_control(control)
 	await process_frame

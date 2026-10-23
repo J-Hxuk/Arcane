@@ -2,6 +2,15 @@
 
 현재 동작은 [CURRENT_STATE](CURRENT_STATE_KO.md), 게임 설계는 [GDD](../GDD_v1_0_KO.md)를 참조한다. **각 작업마다 별도 `IMPLEMENTATION_REPORT_*.md`를 생성하지 않는다.**
 
+## 2026-10-23 — Phase 2B 마나 실시간 시각화
+
+- `scripts/mana_orb_view.gd`, `scripts/world/world_player_view.gd`: 실제 엔진 스냅샷을 공용 구체에 연결. 반경·밀도·흐름·떨림 등을 0.18초 동안 화면에서만 보간하며 끝에는 정확한 목표 표현에 도달. 일반 영창은 머리 위 64×64 투명 영역, 초집중은 흐름 선·입자 궤적 강조. 물성 공식·초집중 계수·이동/입력·안정화 시간 변경 없음.
+- `scripts/mana_observation_panel.gd`, `mana_observation_plot.gd`, `laboratory_panel.gd`: 수치표를 유지하고 선택 입력 전/후 및 이전 기록의 실제 스냅샷 구체를 함께 표시. 그래프는 같은 입력의 전/후 점을 강조하며 구체 바로 아래 표시. 작은 창은 수직 스크롤. 과거 미기록 상태는 명시적으로 미기록 표시하고 재계산하지 않음. 실패·취소도 원래 저장된 마지막 단계로 재생.
+- `tests/test_mana_realtime_visuals.gd`, `run_mana_observation.ps1`, `test_mana_observation_ui.gd`, `test_water15_window_input.gd`: ON/OFF 결과 불변·실제 단계 연동·순서 차이·전후/기록 비교·실패/취소·미기록·초집중 이동 잠금·500회 선택 중 노드 수 불변 검사. 실행기는 출력을 비동기로 소비하고 필요한 디렉터리 생성·과거 fixture 누락을 사전 검사. 창 합성 입력은 중첩 레이아웃의 갱신 뒤 클릭.
+- headless 전체 실행은 **19개 / 2,374 checks / 0 failures**, 취소 후 애니메이션 처리 정지를 추가한 Phase2B 최종22검사도 재실행하여 최신 합계 **2,375 checks / 0 failures**. 과거 사용자 복사본이 없는 `test_attributes_model`, 그 산출물에 의존하는 `test_attributes_restart`, `test_current_developer` 3개는 완료 불가로 전체 실행기 종료 코드는 실패를 유지한다. 개인 데이터를 임의 생성하지 않음. 실제 창 합성은 단독 순차 실행: Phase2B22·Phase2A32·F2기반56 검사 통과. 로그/JSON은 `.task002_artifacts/mana_observation/`, `.task002_artifacts/phase2b_*`, 비교 캡처는 `.task002_artifacts/current_world_options/phase2b_*.png`.
+- 물15 실제 창 검사는 최종 **86검사 / 2실패**(OH-069/OH-072 보스 명중). 변경 전 `dccffe2` 게임 소스의 격리 복사본에 동일한 레이아웃 대기 합성 입력을 적용해도 **86검사 / 1실패**(OH-072)가 재현됐다. 전체 창 회귀 통과로 간주하지 않으며 추가 원인 조사가 필요하다. Godot 4.7.2 / Intel Arc 140V / Compatibility. 원인 미확정이며 보스·월드 진행·전투 로직은 이번 시각화 작업에서 변경하지 않음.
+- `master`에서 `origin/master` pull은 `dccffe2` 최신 상태. 기존 미커밋 33개 파일을 stash 보존·복원 후 SHA-256 전부 일치 확인, 안전 백업 stash 유지. 저장v6/일지v1·개인 키맵·마나탈진·정식28종/신규20계열 계수·전투 등록 변경 없음. 신규 구현 보고서 생성 없음. 사용자 수동 QA·릴리스 export·장시간 성능은 미실행.
+
 ## 2026-10-23 — Phase 2A 실시간 마나 관측
 
 - `scripts/mana_observation.gd`: 기존 단계 스냅샷의 입력·Multiset·실제 속성·전후/Δ·B/raw/rawΔ 및 기존 투영을 읽는 관측 계층. O/T는 기존 설정으로 분해 후 raw와 검산한 진단값이며 압축 안정성 보정은 별도 보관. 공식·계수·시전/자원/권한 로직 변경 없음. 새20계열 미정 계수·음양을 추측하지 않음.

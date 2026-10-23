@@ -1,4 +1,9 @@
 extends "res://tests/test_water15_integration.gd"
+func click_control(control: Control) -> void:
+	await process_frame
+	await process_frame
+	await super.click_control(control)
+
 func shot_keys(order:Array)->void:
 	game._reset_combat_input();await key(KEY_SHIFT,true)
 	for event in E.inputs(game._active_profile(),order):await tap(OS.find_keycode_from_string(event.key))

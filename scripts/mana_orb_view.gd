@@ -6,6 +6,11 @@ var snapshot: Dictionary = {}
 var visual_time := 0.0
 var animated := false
 var observation_gain := 1.0
+var transparent_view := false
+var target_descriptor: Dictionary = {}
+var _transition_from: Dictionary = {}
+var _transition_elapsed := 0.18
+const TRANSITION_SECONDS := 0.18
 var _box: StyleBoxFlat
 
 func _ready() -> void:
@@ -15,9 +20,14 @@ func _ready() -> void:
 
 func show_snapshot(state: Dictionary, time := 0.0, animate := false, context: Dictionary = {}) -> void:
 	var projected := Model.project(state, context)
+	if projected != target_descriptor:
+		_transition_from = descriptor.duplicate(true)
+		target_descriptor = projected.duplicate(true)
+		_transition_elapsed = 0.0 if animate and animated else TRANSITION_SECONDS
+	if not animate: _transition_elapsed = TRANSITION_SECONDS
 	if not animate or not animated: visual_time = maxf(0.0, time)
 	snapshot = state.duplicate(true)
-	descriptor = projected
+	descriptor = projected if _transition_elapsed >= TRANSITION_SECONDS else descriptor
 	animated = animate
 	set_process(animate)
 	queue_redraw()
@@ -25,6 +35,19 @@ func show_snapshot(state: Dictionary, time := 0.0, animate := false, context: Di
 func _process(delta: float) -> void:
 	if not is_visible_in_tree(): return
 	visual_time = fmod(visual_time + delta, 3600.0)
+	if _transition_elapsed >= TRANSITION_SECONDS:
+		queue_redraw()
+		return
+	_transition_elapsed = minf(TRANSITION_SECONDS, _transition_elapsed + delta)
+	if _transition_elapsed >= TRANSITION_SECONDS:
+		descriptor = target_descriptor.duplicate(true)
+		queue_redraw()
+		return
+	var weight := smoothstep(0.0, TRANSITION_SECONDS, _transition_elapsed)
+	descriptor = target_descriptor.duplicate(true)
+	for field in target_descriptor:
+		if target_descriptor[field] is float or target_descriptor[field] is Vector2:
+			descriptor[field] = lerp(_transition_from.get(field, target_descriptor[field]), target_descriptor[field], weight)
 	queue_redraw()
 
 func particle_points(time: float) -> PackedVector2Array:
@@ -53,14 +76,15 @@ func particle_points(time: float) -> PackedVector2Array:
 	return points
 
 func _draw() -> void:
-	draw_style_box(_background(), Rect2(Vector2.ZERO, size))
+	if not transparent_view: draw_style_box(_background(), Rect2(Vector2.ZERO, size))
 	var center := size * 0.5
 	var scale_factor := minf(size.x * 0.36, size.y * 0.39)
 	var ink := Color("88deed")
 	var trace: Dictionary = descriptor["reaction"]
 	if not str(trace["element"]).is_empty(): ink = ink.lerp(Model.COLORS.get(trace["element"], Color("a4d8f0")), minf(1, float(trace["strength"]) * observation_gain))
-	draw_line(Vector2(12, center.y), Vector2(size.x - 12, center.y), Color("223747"), 1.0)
-	draw_arc(center, scale_factor, 0.0, TAU, 64, Color("223747"), 1.0)
+	if not transparent_view:
+		draw_line(Vector2(12, center.y), Vector2(size.x - 12, center.y), Color("223747"), 1.0)
+		draw_arc(center, scale_factor, 0.0, TAU, 64, Color("223747"), 1.0)
 	if descriptor["presence"] <= 0.0 and not descriptor["collapsed"]:
 		draw_circle(center, 2.0, Color("536b7d"))
 		return
@@ -80,6 +104,7 @@ func _draw() -> void:
 			var angle := visual_time * (0.4 + float(descriptor["orbit"]))
 			draw_arc(center, maxf(7.0, radius * 1.35), angle, angle + PI * 1.5, 40, Color(ink, 0.7), 2.0)
 	var points := particle_points(visual_time)
+	var previous_points := particle_points(visual_time - 0.08) if observation_gain > 1.0 else PackedVector2Array()
 	if descriptor.get("persistence",0)>0:
 		draw_arc(center,maxf(4,radius*1.22),0,TAU,48,Color(ink,minf(0.6,descriptor["persistence"]*0.3)),1.0)
 	for i in points.size():
@@ -87,7 +112,10 @@ func _draw() -> void:
 		if descriptor["binding"] > 0.0 and i % 4 == 0 and not descriptor["collapsed"]:
 			draw_line(point, center + points[(i + 8) % points.size()] * scale_factor, Color(ink, 0.18 + float(descriptor["binding"]) * 0.5), 1.0)
 		if Vector2(descriptor["flow"]).length() > 0.0:
-			draw_line(point - Vector2(descriptor["flow"]) * 7.0, point, Color(ink, 0.35), 1.3)
+			draw_line(point - Vector2(descriptor["flow"]) * (7.0 * observation_gain), point, Color(ink, minf(0.65, 0.35 * observation_gain)), 1.3)
+		if observation_gain > 1.0 and i % 4 == 0:
+			var previous := center + previous_points[i] * scale_factor
+			draw_line(previous, point, Color(ink, 0.45), 1.0)
 		draw_circle(point, 1.0 + brightness * 1.0 + float(descriptor["density"]) * 0.8, Color(ink, 0.3 + brightness * 0.65))
 	if descriptor["collapsed"]:
 		for i in 7:

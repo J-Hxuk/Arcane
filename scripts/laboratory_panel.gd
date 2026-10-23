@@ -71,6 +71,7 @@ var lens_trial_caption:Label
 var _lens_keys:Array=[]
 var _caption_seconds:=0.0
 var numeric_observation: CheckButton
+var numeric_scroll: ScrollContainer
 var numeric_view: VBoxContainer
 var observation_heading: Label
 var _observation_latest: Dictionary = {}
@@ -542,7 +543,10 @@ func show_live(keys: Array[String], observation: String, mana: float, fatigue: f
 			if observation_target.get_item_metadata(index)==target:observation_target.select(index);break
 		observation_target.disabled=not arena.controller.research.ritual_target.is_empty() or arena.controller.movement_research_active or arena.controller._attribute_session_locked()
 	coach.update_state(debug_state, keys.size(), debug_state.get("last_change", "아직 입력 없음"), debug_state.get("research_context", {}))
-	live_orb.show_snapshot(debug_state, 0.0, true)
+	live_orb.show_snapshot(debug_state, 0.0, not keys.is_empty())
+	if numeric_view!=null:
+		for orb in numeric_view.visual_orbs:
+			orb.observation_gain=1.45 if mode_label.begins_with("FOCUS_CAST") else 1.0
 	observation_hint.text = VisualModel.observation_hint(debug_state)
 	live.text = "%s · 입력: %s\n관찰: %s\n마나 %.1f점 · 영창 안정화 %.1f초" % [mode_label, " > ".join(keys) if not keys.is_empty() else "(없음)", observation, mana, fatigue]
 	if formal_rules:
@@ -623,7 +627,9 @@ func _formal_layout()->void:
 		if arena.controller!=null:arena.controller._select_lab_observation(str(observation_target.get_item_metadata(i))))
 	center.add_child(observation_target)
 	live_orb.reparent(center);live_orb.custom_minimum_size=Vector2(540,230);live_orb.size_flags_vertical=Control.SIZE_EXPAND_FILL;live_orb.observation_gain=1.45
-	numeric_view=preload("res://scripts/mana_observation_panel.gd").new();center.add_child(numeric_view)
+	numeric_scroll=ScrollContainer.new();numeric_scroll.custom_minimum_size=Vector2(540,320);numeric_scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;center.add_child(numeric_scroll)
+	numeric_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	numeric_view=preload("res://scripts/mana_observation_panel.gd").new();numeric_view.size_flags_horizontal=Control.SIZE_EXPAND_FILL;numeric_scroll.add_child(numeric_view)
 	live.reparent(center);live.custom_minimum_size=Vector2(500,36);live.max_lines_visible=2;preview_label.reparent(center);preview_label.custom_minimum_size=Vector2(500,32);preview_label.max_lines_visible=2
 	lens_readout=Label.new();lens_readout.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;lens_readout.custom_minimum_size.x=500;lens_readout.max_lines_visible=3;center.add_child(lens_readout);lens_readout.hide()
 	lens_caption=Label.new();lens_caption.add_theme_font_size_override("font_size",20);center.add_child(lens_caption);lens_caption.hide()
@@ -643,6 +649,7 @@ func _formal_layout()->void:
 func _set_numeric_observation(enabled: bool) -> void:
 	if numeric_view==null:return
 	numeric_view.visible=enabled
+	if numeric_scroll!=null:numeric_scroll.visible=enabled
 	if observation_heading!=null:observation_heading.visible=not enabled
 	for control in [live_orb,live,preview_label,comparison_hint]:control.visible=not enabled
 	if enabled:numeric_view.set_live(_observation_latest,_observation_active)

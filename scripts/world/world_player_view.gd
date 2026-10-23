@@ -5,6 +5,10 @@ var game
 var body: AnimatedSprite2D
 var facing: StringName = &"down"
 var _last_position := Vector2.ZERO
+var mana_orb: Control
+var mana_visuals_enabled := true
+var _observed_inputs: Array = []
+var _observed_mode := -1
 
 func _ready() -> void:
 	body = AnimatedSprite2D.new()
@@ -15,12 +19,31 @@ func _ready() -> void:
 	body.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	body.animation = facing
 	add_child(body)
+	mana_orb = preload("res://scripts/mana_orb_view.gd").new()
+	mana_orb.transparent_view = true
+	mana_orb.position = Vector2(-32, -94)
+	mana_orb.size = Vector2(64, 64)
+	add_child(mana_orb)
 	if game != null: _last_position = game.player_pos
 
 func _process(delta: float) -> void: update_presentation(delta)
 
 func update_presentation(_delta: float) -> void:
 	if game == null or body == null: return
+	var chant_source = game if game.has_method("_inspect_chant") else game.controller
+	var casting: bool = game.combat_input.mode != game.CombatInput.Mode.NORMAL
+	mana_orb.visible = mana_visuals_enabled and chant_source != null and casting and not chant_source.runes.is_empty() and chant_source.game_state in ["DUNGEON", "LAB"]
+	if mana_orb.visible:
+		mana_orb.observation_gain = 1.45 if game.combat_input.mode == game.CombatInput.Mode.FOCUS_CAST else 1.0
+		if _observed_inputs != chant_source.chant_inputs or _observed_mode != game.combat_input.mode:
+			_observed_inputs = chant_source.chant_inputs.duplicate(true)
+			_observed_mode = game.combat_input.mode
+			var simulation: Dictionary = chant_source._inspect_chant(true).simulation
+			mana_orb.show_snapshot(simulation.get("final_state", {}), 0.0, true)
+	else:
+		_observed_inputs = []
+		_observed_mode = -1
+		if mana_orb.animated: mana_orb.show_snapshot({})
 	var motion: Vector2 = game.player_pos - _last_position
 	_last_position = game.player_pos
 	var moving := motion.length() > 0.01 and motion.length() < 80

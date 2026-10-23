@@ -2,6 +2,7 @@ extends Control
 ## Small per-axis sparklines of actual snapshots. No predicted/fictional state.
 const Observation = preload("res://scripts/mana_observation.gd")
 var frames: Array = []
+var selected_index := -1
 func set_frames(value: Array) -> void:
 	frames=value.duplicate(true); queue_redraw()
 func _draw() -> void:
@@ -23,3 +24,6 @@ func _draw() -> void:
 			points.append(origin+Vector2(4+(cell.x-12)*i/maxi(1,values.size()-1),cell.y-5-ratio*15))
 		if points.size()>1: draw_polyline(points,Color("69cbe6"),1.5,true)
 		for point in points: draw_circle(point,2,Color("d3f3ff"))
+		if selected_index>=0 and selected_index<points.size():
+			draw_circle(points[selected_index],3,Color("ffcc80"))
+			if selected_index>0: draw_circle(points[selected_index-1],3,Color("9ee9ae"))
