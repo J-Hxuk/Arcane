@@ -1,6 +1,8 @@
 # 오행 융합 A~D 구현·검증 보고서
 
-> 후속 [Fusion-UX2](IMPLEMENTATION_REPORT_FUSION_UX2_KO.md)에서 **F5 → F2 개발 진입**, 연구실 **Shift 해제 자동 방출·기록**, 던전 이동 시전 **80% 속도**를 적용했다. 아래 CMD 필수 및 연구실 버튼 방출 설명은 A~D 당시 기록이다. 주문·계보·슬롯 규칙은 유지한다.
+> **문서 정리(2026-10-23):** 아래의 과거 구현 보고서 링크는 삭제 전 Git 커밋에 고정된 역사 기록입니다. 현재 구현 및 확정 규칙은 최신 코드와 후속 문서를 우선합니다.
+
+> 후속 [Fusion-UX2](https://github.com/J-Hxuk/Arcane/blob/5da9e9a497c64941f29792948a2c5b0ffa53a182/IMPLEMENTATION_REPORT_FUSION_UX2_KO.md)에서 **F5 → F2 개발 진입**, 연구실 **Shift 해제 자동 방출·기록**, 던전 이동 시전 **80% 속도**를 적용했다. 아래 CMD 필수 및 연구실 버튼 방출 설명은 A~D 당시 기록이다. 주문·계보·슬롯 규칙은 유지한다.
 
 작업일: 2026-10-17, 한국 시간. 기준은 [오행 융합 GDD v1.0](Arcane_Legacy_GDD_Ohaeng_Fusion_v1_0_KO.md), [Codex 구현 명세 v1.0](Arcane_Legacy_Codex_Ohaeng_Fusion_Implementation_v1_0_KO.md), 이후 사용자의 D 세 주문 확장 지시다. 개인 키표·최종 상태 판정·RMB 이동·Shift 이동/초집중·Ctrl 회피·Alt·연구실·J HUD를 유지했다.
 
