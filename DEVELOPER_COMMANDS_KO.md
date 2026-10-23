@@ -1,10 +1,12 @@
 # 개발 시험 실행 및 검증 커맨드
 
+> **문서 정리(2026-10-23):** 아래의 과거 구현 보고서 링크는 삭제 전 Git 커밋에 고정된 역사 기록입니다. 현재 구현 및 확정 규칙은 최신 코드와 후속 문서를 우선합니다.
+
 > 이후 통합 수정이 적용되었습니다. 현재는 주속성 단일마법만 허용하고, 음수 마나 대신 비공개 부채를 사용하며 M1 영창 조건도 변경되었습니다. [최신 규칙·현재 15종 영창·검증](IMPLEMENTATION_REPORT_PHASE_4_INTEGRATED_KO.md)을 우선 읽으세요. 아래 내용은 당시 구현 기록입니다.
 
 **Phase 3A 보스 시험:** F5 → 게임 화면 F2 → 원하는 오행 → **월드 보스** → 임시 캐릭터 시작. 일반 플레이는 마을에서 시작하며, 북서쪽 연구실 입구 E·동쪽 성문·탐험로의 휴식석 E·폐허 입구 E로 진행한다. RMB/Shift/LMB/Ctrl/Alt/J를 유지한다. [월드·보스·검증 보고서](IMPLEMENTATION_REPORT_PHASE_3A_KO.md). 아래 영창 키 체계와 주문은 변경하지 않았다.
 
-**Godot F5 → 게임 화면 F2 → WATER_METAL**에서 빙정침 `X → T → Z → F → C`, 빙정방벽 `X → T → Z → F → R → R → C`를, **FIRE_WATER**에서 풍압탄 `Q → T → Z → X → C`를 시험한다. 연구실에서는 Shift를 누른 채 입력하고 놓으면 자동 방출·기록한다. [Fusion-UX2 조작·검증](IMPLEMENTATION_REPORT_FUSION_UX2_KO.md), [역방향 입력·효과](IMPLEMENTATION_REPORT_OHAENG_FUSION_KO.md). 아래 VOID 표기는 슬롯 없는 중립 시험이다.
+**Godot F5 → 게임 화면 F2 → WATER_METAL**에서 빙정침 `X → T → Z → F → C`, 빙정방벽 `X → T → Z → F → R → R → C`를, **FIRE_WATER**에서 풍압탄 `Q → T → Z → X → C`를 시험한다. 연구실에서는 Shift를 누른 채 입력하고 놓으면 자동 방출·기록한다. [Fusion-UX2 조작·검증](https://github.com/J-Hxuk/Arcane/blob/5da9e9a497c64941f29792948a2c5b0ffa53a182/IMPLEMENTATION_REPORT_FUSION_UX2_KO.md), [역방향 입력·효과](IMPLEMENTATION_REPORT_OHAENG_FUSION_KO.md). 아래 VOID 표기는 슬롯 없는 중립 시험이다.
 
 2026-10-17 현재 저장된 캐릭터의 영창 대응표를 읽기 전용으로 확인했다. 아래 입력은 현재 ManaSimulator와 CombatSpellResolver에서 검증했다. 저장 파일의 검증 전후 해시는 동일하다. 캐릭터를 새로 만들거나 대응표가 바뀌면 입력도 달라질 수 있다.
 

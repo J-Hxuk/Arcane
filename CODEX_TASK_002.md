@@ -1,5 +1,7 @@
 # 2026-10-19 후속 수정 — 수식 비교·융합·Alt HUD
 
+> **문서 정리(2026-10-23):** 아래의 과거 구현 보고서 링크는 삭제 전 Git 커밋에 고정된 역사 기록입니다. 현재 구현 및 확정 규칙은 최신 코드와 후속 문서를 우선합니다.
+
 [후속 보고서](IMPLEMENTATION_REPORT_FORMULA_FOLLOWUP_KO.md)를 우선한다. 휠 줌·Tab 대상·Alt+1~6·홀드 HUD를 적용하고 정식 융합의 연구/발견 이력 필수 조건을 실행·저장까지 제거했다. 개화·장착·BIND·마나 및 기존 기록은 보존한다. raw 보정 경로는 19종 572순열 비교 후 큰 변화 보고를 위해 기본 적용 보류, 15종·질적 현상은 초안/충돌 검토 단계다. 아래의 기존 연구 허가·휠 선택 안내와 충돌하면 이 기준을 따른다.
 
 # 이전 추가 정정 — 영창 수식 검증 Phase 0~3
@@ -12,21 +14,21 @@
 
 # Codex 작업 지시서 002 — 설계 v1.0 반영 & 입력/연구 Vertical Slice
 
-최신 작업 범위는 [Phase 4 M1 및 이동 개선 보고서](IMPLEMENTATION_REPORT_PHASE_4_M1_KO.md)다. `docs/design/` v0.5의 기초 15종, 연구·실험 UX, 기존 영창표를 보존하는 신규 12키 버전, 커서 방향 회피와 도달 가능한 RMB 목적지 보정을 적용한다. M2~M5·두 번째 보조 개화·고위 조작 해금은 구현하지 않는다. 수치 미정 항목은 최종 확정하지 않았다. 아래는 선행 단계 기록이다.
+최신 작업 범위는 [Phase 4 M1 및 이동 개선 보고서](https://github.com/J-Hxuk/Arcane/blob/5da9e9a497c64941f29792948a2c5b0ffa53a182/IMPLEMENTATION_REPORT_PHASE_4_M1_KO.md)다. `docs/design/` v0.5의 기초 15종, 연구·실험 UX, 기존 영창표를 보존하는 신규 12키 버전, 커서 방향 회피와 도달 가능한 RMB 목적지 보정을 적용한다. M2~M5·두 번째 보조 개화·고위 조작 해금은 구현하지 않는다. 수치 미정 항목은 최종 확정하지 않았다. 아래는 선행 단계 기록이다.
 
 최신 기준은 [오행 융합 구현 명세 v1.0](Arcane_Legacy_Codex_Ohaeng_Fusion_Implementation_v1_0_KO.md)와 사용자의 세 시험 주문 확장 지시다. A~C 검증 후 빙정침→빙정방벽→풍압탄을 구현했다. [최종 보고서·검증·커맨드](IMPLEMENTATION_REPORT_OHAENG_FUSION_KO.md). 아래 UX1 및 이전 여섯 원소 문구는 선행 기록이다.
 
-> **최신 완료 작업: 2026-10-17 Phase 2B-UX1.** [최종 확정본](Arcane_Legacy_Phase_2B_UX1_Spec_KO.md)에 따라 RMB 목적지 이동 → Ctrl 회피 → 기초 3입력/水 효용 → 공명 시각/렌즈 → 격리된 6속성 개발 시험을 단계별 구현·검증했다. 육체/마법 재능과 입력 수를 통제 비교했고 미확인 패널티는 추가하지 않았다. 아래 '최신/현재' 표현은 과거 작업 기록이며 새 조작·파일·결과는 [UX1 보고서](IMPLEMENTATION_REPORT_PHASE_2B_UX1_KO.md)를 우선한다.
+> **최신 완료 작업: 2026-10-17 Phase 2B-UX1.** [최종 확정본](Arcane_Legacy_Phase_2B_UX1_Spec_KO.md)에 따라 RMB 목적지 이동 → Ctrl 회피 → 기초 3입력/水 효용 → 공명 시각/렌즈 → 격리된 6속성 개발 시험을 단계별 구현·검증했다. 육체/마법 재능과 입력 수를 통제 비교했고 미확인 패널티는 추가하지 않았다. 아래 '최신/현재' 표현은 과거 작업 기록이며 새 조작·파일·결과는 [UX1 보고서](https://github.com/J-Hxuk/Arcane/blob/5da9e9a497c64941f29792948a2c5b0ffa53a182/IMPLEMENTATION_REPORT_PHASE_2B_UX1_KO.md)를 우선한다.
 
-> 최신 완료 작업은 **Phase 2B-2.5B 연구·시전 경험 개선 및 火 심화 연구**다. 사용자 첨부 명세에 따라 ① 기초 영창 측정·단축 ② 연구실 실제 발현 ③ 성공 영창 저장/J HUD ④ 여섯 속성 이펙트 ⑤ 화염창·화염폭발 순서로 구현하고 단계별 회귀 검사를 수행했다. 아래 '최신/현재' 표현은 과거 작업 기록이다. [현재 보고서·파일·검증·스크린샷](IMPLEMENTATION_REPORT_PHASE_2B_2_5B_KO.md).
+> 최신 완료 작업은 **Phase 2B-2.5B 연구·시전 경험 개선 및 火 심화 연구**다. 사용자 첨부 명세에 따라 ① 기초 영창 측정·단축 ② 연구실 실제 발현 ③ 성공 영창 저장/J HUD ④ 여섯 속성 이펙트 ⑤ 화염창·화염폭발 순서로 구현하고 단계별 회귀 검사를 수행했다. 아래 '최신/현재' 표현은 과거 작업 기록이다. [현재 보고서·파일·검증·스크린샷](https://github.com/J-Hxuk/Arcane/blob/5da9e9a497c64941f29792948a2c5b0ffa53a182/IMPLEMENTATION_REPORT_PHASE_2B_2_5B_KO.md).
 
 > 최신 우선 작업은 **연구실 마나 시각화**다. Phase 2B-2.5B 새 마법보다 실시간 구체·저장 스냅샷의 입력 전/후 비교·단계 및 시간축 재생을 우선한다. 개인 키 정답/친화성/내부 수치를 숨기고 첫 속성어의 중립 표시를 유지한다. 시뮬레이션 수치 법칙·세이브·개화·기존 6개 전투마법을 보존한다. 아래 단계들은 이전 작업 기록이며 현재 결과는 [시각화 보고서](IMPLEMENTATION_REPORT_LAB_MANA_VISUALIZATION_KO.md)를 참조한다.
 
-> 최신 작업은 **Phase 2B-2.5A 단일 속성 기초 전투마법**이다. Phase 2B-3A 복합마법 개발은 보류한다. 기존 개인 영창·마나 시뮬레이터·Resource 마법 데이터를 재사용해 木 속박 / 火 연소 / 土 장벽 / 金 관통 / 水 밀어내기 / 無 충격파를 구현하며, 전투 권한은 개화한 주속성 1개로 한정한다. 실제 캐릭터를 바꾸지 않고 별도 테스트 캐릭터로 검증한다. 보조속성·복합·고위 마법은 제외한다. 결과: [2B-2.5A 보고서](IMPLEMENTATION_REPORT_PHASE_2B_2_5A_KO.md). 아래의 '현재/이번' 표현은 해당 과거 단계의 기록이다.
+> 최신 작업은 **Phase 2B-2.5A 단일 속성 기초 전투마법**이다. Phase 2B-3A 복합마법 개발은 보류한다. 기존 개인 영창·마나 시뮬레이터·Resource 마법 데이터를 재사용해 木 속박 / 火 연소 / 土 장벽 / 金 관통 / 水 밀어내기 / 無 충격파를 구현하며, 전투 권한은 개화한 주속성 1개로 한정한다. 실제 캐릭터를 바꾸지 않고 별도 테스트 캐릭터로 검증한다. 보조속성·복합·고위 마법은 제외한다. 결과: [2B-2.5A 보고서](https://github.com/J-Hxuk/Arcane/blob/5da9e9a497c64941f29792948a2c5b0ffa53a182/IMPLEMENTATION_REPORT_PHASE_2B_2_5A_KO.md). 아래의 '현재/이번' 표현은 해당 과거 단계의 기록이다.
 
-> 최신 작업은 [Phase 2B-2 명세](Arcane_Legacy_Phase_2B-2_First_Awakening_Spec.md)의 최초 개화다. 기존 단순 연구 확정 UI는 조회로 전환하고 주속성 1개의 의식/영구 확인만 제공한다. 기존 잠금 슬롯·시드·개인 키·일지는 보존한다. 결과: [2B-2 보고서](IMPLEMENTATION_REPORT_PHASE_2B_2_KO.md). 아래 2B-1/2A 및 전체 Vertical Slice 항목은 과거 단계와 장기 목표를 포함한다.
+> 최신 작업은 [Phase 2B-2 명세](Arcane_Legacy_Phase_2B-2_First_Awakening_Spec.md)의 최초 개화다. 기존 단순 연구 확정 UI는 조회로 전환하고 주속성 1개의 의식/영구 확인만 제공한다. 기존 잠금 슬롯·시드·개인 키·일지는 보존한다. 결과: [2B-2 보고서](https://github.com/J-Hxuk/Arcane/blob/5da9e9a497c64941f29792948a2c5b0ffa53a182/IMPLEMENTATION_REPORT_PHASE_2B_2_KO.md). 아래 2B-1/2A 및 전체 Vertical Slice 항목은 과거 단계와 장기 목표를 포함한다.
 
-> 현재 확장 작업은 [명세 v1.2](Arcane_Legacy_Magic_Research_Spec_v1_2.md)의 **Phase 2B-1만** 따른다. 기존 Phase 2A/입력 규칙을 유지하며 개인 영창·마나 시뮬레이터·연구실 기록/재생을 추가했다. 결과는 [Phase 2B-1 보고서](IMPLEMENTATION_REPORT_PHASE_2B_1_KO.md)를 참조한다. 아래 목록 전체를 구현 완료했다는 의미는 아니다.
+> 현재 확장 작업은 [명세 v1.2](Arcane_Legacy_Magic_Research_Spec_v1_2.md)의 **Phase 2B-1만** 따른다. 기존 Phase 2A/입력 규칙을 유지하며 개인 영창·마나 시뮬레이터·연구실 기록/재생을 추가했다. 결과는 [Phase 2B-1 보고서](https://github.com/J-Hxuk/Arcane/blob/5da9e9a497c64941f29792948a2c5b0ffa53a182/IMPLEMENTATION_REPORT_PHASE_2B_1_KO.md)를 참조한다. 아래 목록 전체를 구현 완료했다는 의미는 아니다.
 
 ## 2026-10-16 Phase 2A 적용 기준 (이번 작업 우선)
 - 1차 플레이테스트에서 이동·이동 시전·초집중·WASD 커맨드·마력탄·HUD·Alt 감각·모드 해제 8개 항목을 사용자가 정상 확인했다. 기존 입력/전투 구현을 유지한다.
@@ -35,7 +37,7 @@
 - 단순 서적 열람·관찰·단서 획득은 슬롯을 쓰지 않는다. 파생 개념에 추가 슬롯을 부여하지 않고, 복합 마법은 구성 기본 속성 모두의 연구 자격을 요구한다.
 - 기존 캐릭터 재능과 저장을 재생성/삭제하지 않는다. 기존 저장에 없는 친화성을 임의로 생성하지 않는다. 버전 없는 저장은 원본 백업과 필드 보존을 전제로 이전한다.
 - 아래 우선순위 3의 **화염 공격과 주문 축약 예시**는 이번에 구현하지 않는다. 복합 마법 전체·계보도·고등·시그니처 마법도 제외한다.
-- 현재 결과: [Phase 2A 구현 보고서](IMPLEMENTATION_REPORT_PHASE_2A_KO.md). 아래 원래 작업 목록은 전체 Vertical Slice의 후속 목표도 포함한다.
+- 현재 결과: [Phase 2A 구현 보고서](https://github.com/J-Hxuk/Arcane/blob/5da9e9a497c64941f29792948a2c5b0ffa53a182/IMPLEMENTATION_REPORT_PHASE_2A_KO.md). 아래 원래 작업 목록은 전체 Vertical Slice의 후속 목표도 포함한다.
 
 ## 소스 기준
 - `GDD_v1_0_KO.md`가 최신 개발 명세. 기존 `README.md`, `CODEX_TASK.md`는 **이전 프로토타입**에 관한 설명으로, 특히 Shift=초월 감각, RMB=룬 입력은 최신 기획과 다름.
