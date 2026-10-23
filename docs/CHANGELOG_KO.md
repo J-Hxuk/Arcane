@@ -2,6 +2,13 @@
 
 현재 동작은 [CURRENT_STATE](CURRENT_STATE_KO.md), 게임 설계는 [GDD](../GDD_v1_0_KO.md)를 참조한다. **각 작업마다 별도 `IMPLEMENTATION_REPORT_*.md`를 생성하지 않는다.**
 
+## 2026-10-23 — Phase 2B 후속 검증
+
+- `tests/test_water15_window_input.gd`: 실제 조준점·효과·방출 직후/물리 업데이트 후 HP를 기존 판정과 함께 JSON으로 보관. 주문·비용·명중의 기존 합격 기준은 유지. 동일 테스트를 `dccffe2`와 `d2ec419` 게임 소스의 격리본에 적용해 단독 창으로 각2회 실행, 각86검사/0실패. OH-069/072 최종 HP는 양쪽 각각 208.922312263338/210.751755797199(최대260)로 일치. 이전 실패 원로그에는 HP 숫자가 없으므로 숫자를 소급 생성하지 않음.
+- 이전 OH-072는 변경 전에도 실패했으므로 기존 간헐 문제. OH-069는 과거 Phase2B만 실패하고 이번에는 양쪽 모두 통과해 신규 회귀 여부 미확정. **실패 원인을 해결한 것으로 간주하지 않음.** 신규 회귀가 확인되지 않아 게임 로직·기대값 변경 없음. 상세 재현 조건·테스트별 기대/실제값 대조는 `CURRENT_STATE_KO.md`의 기존 문서 내 표에 기록. 로그/HP JSON은 `.task002_artifacts/phase2b_followup/`.
+- `tests/test_attributes_restart.gd`, `tests/run_mana_observation.ps1`: fixture 누락 시 무한 대기 대신 해당 분기를 명시적으로 실패 처리하고 존재하는 재시작 분기도 검사. 격리본의 기존 `test_attributes_research` 생산자로 five_rituals fixture 재생성, 41검사/0실패. 별도 재시작은 **9검사 통과 + attributes fixture 누락1실패**. user_before.json 두 원문은 gitignore 산출물로 Git 이력/현재 로컬 자료에 없고 attributes manifest는 모델 테스트 의존 산출물이라 복원 불가. 합성 데이터나 현재 실제 저장으로 대체하지 않음. 원문 마이그레이션·실사용자 F2 왕복·attributes 재시작 검증 공백 유지.
+- 현재 로컬 작업 폴더는 `blink_modifier.gd` 해석 실패(`main.gd:707` 경유)로 연구 테스트 실행 불가. 사용자 로컬 수정·씬·저장은 덮어쓰지 않고 Phase2B 커밋 격리본에서 검사했다. 따라서 **로컬 수정본과의 통합 실행, 실패 원인 해소, 사람 수동 QA, export, 장시간 성능은 미검증**. `CURRENT_STATE_KO.md`에 짧은 수동 QA 3단계 추가. 신규 구현 보고서 없음.
+
 ## 2026-10-23 — Phase 2B 마나 실시간 시각화
 
 - `scripts/mana_orb_view.gd`, `scripts/world/world_player_view.gd`: 실제 엔진 스냅샷을 공용 구체에 연결. 반경·밀도·흐름·떨림 등을 0.18초 동안 화면에서만 보간하며 끝에는 정확한 목표 표현에 도달. 일반 영창은 머리 위 64×64 투명 영역, 초집중은 흐름 선·입자 궤적 강조. 물성 공식·초집중 계수·이동/입력·안정화 시간 변경 없음.

@@ -23,7 +23,6 @@ foreach($case in $cases){
  $log=Join-Path $artifact "$($case)_$mode.log"
  $requiredFiles=@()
  if($case -eq 'test_attributes_model'){$requiredFiles=@('user_before.json')}
- if($case -eq 'test_attributes_restart'){$requiredFiles=@('restart_attributes.json','restart_five_rituals.json')}
  if($case -eq 'test_current_developer'){$requiredFiles=@('../current_world_options/user_before.json')}
  $missing=@($requiredFiles|Where-Object {-not (Test-Path -LiteralPath (Join-Path $projectRoot ".task002_artifacts/attribute_loadout/$_"))})
  if($missing.Count){

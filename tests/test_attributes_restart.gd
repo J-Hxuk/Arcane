@@ -1,6 +1,9 @@
 extends "res://tests/attribute_helpers.gd"
 func run()->void:
 	for label in ["attributes","five_rituals"]:
+		if not FileAccess.file_exists(OUT+"restart_"+label+".json"):
+			check(false,"Missing restart prerequisite: restart_"+label+".json (producer test must complete first)")
+			continue
 		var manifest:Dictionary=JSON.parse_string(FileAccess.get_file_as_string(OUT+"restart_"+label+".json"));var bytes:=FileAccess.get_file_as_bytes(manifest.path)
 		game=Scene.instantiate();game.save_path=manifest.path;root.add_child(game);game.set_process(false);await process_frame
 		check(game.save_writable and game.research.free_attributes,"Separate process loads new canonical research "+label)

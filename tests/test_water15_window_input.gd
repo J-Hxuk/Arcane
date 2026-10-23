@@ -11,6 +11,7 @@ func lab_aim(arena,p:Vector2)->void:
 	arena._update_views();arena.camera.reset_smoothing();arena.camera.force_update_scroll();await process_frame
 	var point:Vector2=arena.world_to_screen(p);Input.warp_mouse(point);await process_frame
 	var mouse:=InputEventMouseMotion.new();mouse.position=point;mouse.global_position=point;Input.parse_input_event(mouse);await process_frame
+var diagnostics: Array=[]
 func run()->void:
 	root.size=Vector2i(1160,720);var path:=fresh();await process_frame;var bytes:=FileAccess.get_file_as_bytes(path);var original:Dictionary=game._character_document().duplicate(true)
 	await tap(KEY_F2);check(game.developer_panel.panel.visible,"Actual F2 opens from ordinary F5 main scene")
@@ -61,14 +62,17 @@ func run()->void:
 		var goal:Vector2=boss.pos
 		if d.effect in [&"cone",&"shockwave"]:boss.pos=game.player_pos+Vector2(100,0);goal=boss.pos
 		var mana:float=game.player_mana;await click_world(goal,MOUSE_BUTTON_LEFT);await key(KEY_SHIFT,false)
+		diagnostics.append({"id":item.id,"goal":str(goal),"aim":str(game.aim_world_position()),"hp_after_cast":boss.hp,"max_hp":boss.max_hp,"effect":str(d.effect)})
 		if item.id in ["OH-066","OH-067"]:game.missiles.append({"pos":game.player_pos+Vector2(160,0),"dir":Vector2.LEFT,"hostile":true,"life":2.0,"speed":180.0,"dmg":20.0})
 		check(is_equal_approx(mana-game.player_mana,prediction.mana_cost) and game.developer_metrics.get("spell")==d.display_name,item.id+" actual world Shift/LMB releases correct spell and cost")
 		for frame in 8:game.elemental_combat.update(game,1.0/60);game.elemental_combat.update_missiles(game,1.0/60,1)
 		await snap_water(item.id+"_boss")
 		for frame in 480:game.elemental_combat.update(game,1.0/60);game.elemental_combat.update_missiles(game,1.0/60,1)
+		diagnostics.back()["hp_final"] = boss.hp
 		if item.id not in ["OH-066","OH-067"]:check(boss.hp<boss.max_hp,item.id+" actual boss HP receives real combat hit")
 		else:check(game.elemental_combat.water_metrics.shield_contacts>0 and game.elemental_combat.water_states.is_empty(),item.id+" real world shield contacts hostile projectile and expires")
 	await tap(KEY_F2);await snap_water("F2_water15_qa")
 	await click_control(game.developer_panel.end_button)
 	check(Equal.equal(original,game._character_document()) and FileAccess.get_file_as_bytes(path)==bytes,"Actual F2 end restores original progression, J records, personal map and save bytes")
+	FileAccess.open(AUDIT+"window_hit_diagnostics.json",FileAccess.WRITE).store_string(JSON.stringify(diagnostics,"\t"))
 	await finish("WATER15 WINDOW INPUT")

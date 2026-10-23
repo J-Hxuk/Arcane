@@ -22,7 +22,7 @@
 | 등록 주문 | 기존 16종 + 물 추가 12종 = **정식 28종**(물 15종 OH-061~075 포함) | `scripts/formal_spell_registry.gd`, `data/water15_spells.json` |
 | 저장 | `schema_version=6` 유지. 선택적 `magic_attunement.version=1` 검증·왕복 지원. 기존 저장에 필드/음양 자동 추가 없음. 일반 마나 + `mana_debt` 유지 | `scripts/character_save.gd`, `scripts/magic_attunement.gd` |
 | 시험 | F2 → 신규 20계열 데이터 시험: 메모리 해금·활성 선택·기획 ID 검사. 닫으면 선택 폐기. 기존 오행/물15 QA와 격리 저장 복원 유지 | `scripts/magic_foundation_panel.gd`, `tests/run_magic_foundation.ps1` |
-| 최신 관측 회귀 | headless19개 최신 결과 합계 **2,375검사/0실패**(전체 실행 후 Phase2B 최종22검사 재실행). 과거 사용자 fixture가 없는 모델/재시작/F2 실사용자 복사본 검사3개는 완료 불가. 단독 실제 창 합성 Phase2B22·Phase2A32·F2기반56 검사 통과. 물15 창86검사는 2실패이며 변경 전 HEAD 격리본에서도 1실패 재현, 원인 미확정. 기존28종 1,280고유 순열·6,094단계 대조 유지. 기존 로컬 변경33개 파일 SHA-256 일치 | `tests/run_mana_observation.ps1`, `tests/test_mana_realtime_visuals.gd`, `.task002_artifacts/phase2b_verification.json` |
+| 최신 관측 회귀 | 앞선 headless19개 **2,375검사/0실패**, 창 Phase2B22·Phase2A32·F2기반56 통과. 후속 물15 단독 A/B는 변경 전 `dccffe2`·Phase2B `d2ec419` 각각 2회 **86검사/0실패**. 과거 OH-072 실패는 변경 전에도 발생, OH-069는 신규 회귀 여부 미확정(아래 대조). 의식 fixture 생산자41검사 통과, 재시작은 유효한 five_rituals9검사 통과·attributes 누락1실패. 과거 사용자 복사본 기반3개 검증 공백 유지. 현재 로컬 수정본은 blink 스크립트 로딩 오류로 실행 차단되어 커밋 격리본에서 검사 | `tests/test_water15_window_input.gd`, `tests/test_attributes_restart.gd`, `.task002_artifacts/phase2b_followup/` |
 | 신규 기획 카탈로그 | 270행·20계열·75 OH 계보·중복/누락·조작/예시/BIND 검사. 16,007 고유 순열의 기획 ID 불변성 확인. 실행 주문 등록 아님 | `scripts/magic_design_catalog.gd`, `tests/test_magic_foundation.gd` |
 
 ## 현재 설정·이전 규칙과의 차이
@@ -46,6 +46,31 @@
 | 고위/시그니처·자동 축약 | 사용자 승인된 세부 설계·별도 구현·검증 필요 |
 | 테스트·플레이 감각 | 과거 보고서의 자동 검사와 합성 입력은 **사람 플레이 승인**이 아님 |
 | 배포/장시간 성능 | 릴리스 export·장시간 수동 QA **미실행**. 실제 창 합성 검사는 Intel Iris Xe / Compatibility에서 수행 |
+
+## Phase 2B 후속 실패 대조와 검증 공백
+
+`test_water15_window_input.gd`의 실제 창 검사. 1160×720, 격리 WATER fixture(seed8431), F2 물15 WORLD 강한 현상(`on.actions`), 플레이어(3100,910)·보스(3300,910)/RECOVERY. Shift 영창→LMB 방출→Shift 해제 후 기존 488회 1/60초 물리 업데이트 및 캡처. 기대값과 판정식 `boss.hp < boss.max_hp`는 그대로 유지했다.
+
+| 테스트명 | 이전 Phase2B 실패 실제값 | 변경 전 HEAD의 해당 검사 | 후속 동일 조건 재실행(양쪽 각2회) | 분류 |
+|---|---|---|---|---|
+| OH-069 actual boss HP receives real combat hit | HP 감소 판정 false; 원로그는 HP 숫자 미기록 | 이전 로그에서는 pass; 새 진단에서도 pass | 양쪽 HP 208.922312263338 / 최대260, 86검사 전체 통과 | 신규 회귀 **미확인**. 과거 실패의 원인은 미해결이며 기존 문제라고 단정하지 않음 |
+| OH-072 actual boss HP receives real combat hit | HP 감소 판정 false; 원로그는 HP 숫자 미기록 | 이전 격리본도 동일 판정 fail | 양쪽 HP 210.751755797199 / 최대260, 86검사 전체 통과 | 변경 전부터 발생한 **기존 간헐 실패**. 원인 해결/영구 통과를 의미하지 않음 |
+
+진단 시 두 주문의 방출 후 관측 조준점은 (3300,909.8839). 합격 기준을 바꾸지 않고 테스트에 `window_hit_diagnostics.json` 출력만 추가했다. 재현되지 않은 실패를 고쳤다고 보고하지 않으며 게임 코드는 수정하지 않았다. 현재 작업 폴더 검사에서 `main.gd:707` → `blink_modifier.gd` 해석 실패가 발생했다. 사용자 로컬 변경은 유지하고 별도 `d2ec419` 복사본으로 검증했다. 이 로컬 수정본의 통합 실행은 미검증이다.
+
+| 미완료 테스트 | 필요한 fixture·누락 원인 | 이번 확인/복원과 남은 공백 |
+|---|---|---|
+| test_attributes_model | `.task002_artifacts/attribute_loadout/user_before.json`: 당시 실제 v5 캐릭터의 읽기 전용 원문 복사본. METAL/WATER 개화·WATER 주/METAL 보조 및 기존 키맵/발견 등의 보존 검사 | 이 경로는 gitignore 대상이고 Git 이력·로컬 산출물에서 원문을 찾지 못함. 현재 세이브/합성 fixture로 대체하면 원문 보존 검사가 달라지므로 대체하지 않음. v5 실제 복사본 마이그레이션 미검증 |
+| test_attributes_restart | `restart_attributes.json` 및 해당 fixture는 위 모델 테스트 마지막 `restart_fixture("attributes")`의 산출물. `restart_five_rituals.json` 및 해당 fixture는 연구 테스트 산출물 | 격리본에서 `test_attributes_research`를 실행해 five_rituals를 정당하게 재생성(41검사 통과), 별도 프로세스 재시작9검사 통과. attributes는 생산자 입력이 없어 복원 불가. 누락1건은 명시적 실패로 남기고 나머지 분기를 실행하도록 테스트/실행기를 보완함 |
+| test_current_developer | `.task002_artifacts/current_world_options/user_before.json`: 당시 실제 캐릭터 원문 복사본. 실행기가 생성하는 입력이 아님 | 같은 gitignore/이력 부재로 복원 불가. 실제 캐릭터의 F2 ON/OFF 원문 보존은 미검증. 합성 fixture의 F2 검증 결과로 이를 대신하지 않음 |
+
+## Phase 2B 짧은 수동 QA (사람 검사 미실행)
+
+현재 로컬 blink 로딩 오류를 해소한 빌드에서 수행한다. 개인 주문표를 공개하거나 세이브를 교체하지 말고 F2의 격리 QA 세션을 사용한다. 마치면 개발 설정 종료로 원래 캐릭터에 복귀한다.
+
+1. 전투에서 Shift를 유지하고 현재 개인 키맵의 축적→형상→지향 조작을 하나씩 입력한다. 구체의 크기·윤곽·흐름이 짧게 이어져 변하는지, 구체 때문에 보스 전조가 가려지지 않는지 확인한다. 순서를 바꿔 실제 물성과 모습도 비교한다.
+2. Shift 더블탭으로 초집중 진입: 이동이 막히고 입자 궤적이 선명해지는지 본다. Esc 취소 시 구체·궤적이 사라지고, 즉시 재시전해도 이전 형태나 입자가 남지 않는지 5회 반복한다. 별도 대기시간이 생기면 실패다.
+3. 연구실 수치 관측에서 입력 단계 하나를 선택해 전/후 구체와 그래프의 녹색(전)/주황색(후), 수치표가 같은 단계를 가리키는지 확인한다. 기록·단계를 바꿔 현재/이전 구체를 비교하고, 실패·취소 기록의 마지막 상태와 미기록 표시를 확인한다. 좁은 창은 수치표를 아래로 스크롤한다.
 
 ## 이 문서의 유지 규칙
 
