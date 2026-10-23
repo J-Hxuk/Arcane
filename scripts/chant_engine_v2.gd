@@ -11,6 +11,13 @@ static func inputs(profile,actions:Array)->Array:
 			if profile.manipulation(key)==action:result.append({"key":key,"at_ms":result.size()*100,"hold_ms":0});break
 	return result
 static func resolve(profile,events:Array,context:Dictionary)->Dictionary:
+	# Phase 1 schools have no approved mana coefficients/runtime definitions.
+	# Reject before legacy observation/movement/developer fallbacks, without
+	# inventing a mana snapshot for a school that this engine cannot simulate.
+	if context.has("magic_school_id"):
+		var blocked := {"rules_version":8, "property_version":CONFIG.get("property_version","raw-bot-1"), "state":"locked", "kind":"unsupported_school", "message":"신규 계열은 기획 식별만 지원합니다. 물성 계수와 전투 주문은 미구현입니다.", "mana_cost":0.0, "final_state":{}, "casting_steps":[], "failure_step":0, "failure_kind":"unimplemented", "observation":"신규 계열의 마나 상태는 아직 계산하지 않습니다.", "simulation_context":context.duplicate(true), "actions":[], "identity":"", "candidate_ids":[]}
+		var response := blocked.duplicate(true); response["simulation"] = blocked
+		return response
 	context=context.duplicate(true)
 	if context.get("attribute_loadout_version",0)==1:
 		context.main_attribute=context.get("active_main_attribute")

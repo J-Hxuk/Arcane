@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "source": "Arcane_Legacy_Codex_Magic_270/docs/MAGIC_SYSTEM_RULES.md",
+  "schools": [
+    {"id":"EAST_WOOD_YANG","world_system":"EAST","name":"벽람","elements":["WOOD"],"nature":"YANG"},
+    {"id":"EAST_WOOD_YIN","world_system":"EAST","name":"고림","elements":["WOOD"],"nature":"YIN"},
+    {"id":"EAST_FIRE_YANG","world_system":"EAST","name":"홍염","elements":["FIRE"],"nature":"YANG"},
+    {"id":"EAST_FIRE_YIN","world_system":"EAST","name":"흑염","elements":["FIRE"],"nature":"YIN"},
+    {"id":"EAST_EARTH_YANG","world_system":"EAST","name":"황악","elements":["EARTH"],"nature":"YANG"},
+    {"id":"EAST_EARTH_YIN","world_system":"EAST","name":"탁니","elements":["EARTH"],"nature":"YIN"},
+    {"id":"EAST_METAL_YANG","world_system":"EAST","name":"백섬","elements":["METAL"],"nature":"YANG"},
+    {"id":"EAST_METAL_YIN","world_system":"EAST","name":"묵철","elements":["METAL"],"nature":"YIN"},
+    {"id":"EAST_WATER_YANG","world_system":"EAST","name":"창류","elements":["WATER"],"nature":"YANG"},
+    {"id":"EAST_WATER_YIN","world_system":"EAST","name":"현수","elements":["WATER"],"nature":"YIN"},
+    {"id":"WEST_FIRE","world_system":"WEST","name":"불","elements":["FIRE"],"nature":""},
+    {"id":"WEST_WATER","world_system":"WEST","name":"물","elements":["WATER"],"nature":""},
+    {"id":"WEST_AIR","world_system":"WEST","name":"바람","elements":["AIR"],"nature":""},
+    {"id":"WEST_EARTH","world_system":"WEST","name":"땅","elements":["EARTH"],"nature":""},
+    {"id":"WEST_STEAM","world_system":"WEST","name":"증기","elements":["FIRE","WATER"],"nature":""},
+    {"id":"WEST_LIGHTNING","world_system":"WEST","name":"뇌전","elements":["FIRE","AIR"],"nature":""},
+    {"id":"WEST_LAVA","world_system":"WEST","name":"용암","elements":["FIRE","EARTH"],"nature":""},
+    {"id":"WEST_ICE","world_system":"WEST","name":"빙결","elements":["WATER","AIR"],"nature":""},
+    {"id":"WEST_SWAMP","world_system":"WEST","name":"늪","elements":["WATER","EARTH"],"nature":""},
+    {"id":"WEST_SAND","world_system":"WEST","name":"모래","elements":["AIR","EARTH"],"nature":""}
+  ]
+}

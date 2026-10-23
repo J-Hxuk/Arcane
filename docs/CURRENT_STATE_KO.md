@@ -1,6 +1,6 @@
 # Arcane Legacy — 현재 구현 현황
 
-> **기준:** 2026-10-23 GitHub `master`에 반영된 코드·설정과 2026-10-20 물속성 통합 보고서의 교차 확인. **로컬 미푸시 작업은 이 문서에 반영되지 않을 수 있다.** 이번 문서 정리에서는 Godot를 실행하지 않았으며 과거 테스트 기록을 재실행 성과로 주장하지 않는다.
+> **기준:** 2026-10-23 로컬 Phase 2A 실시간 마나 관측. Phase 1 신규20계열 기반과 기존 정식 전투28종을 유지한다. 관측 계층은 기존 계산 결과를 읽으며 공식·계수·입력·자원에는 관여하지 않는다. 검증 수치는 아래 현황과 변경 이력에 기록하며 사람 수동 QA·릴리스 export·270종 신규 전투 발현과 구별한다.
 
 ## 정식 경로
 
@@ -11,12 +11,18 @@
 | 기본 조작 | RMB 이동, Shift 영창/초집중, LMB 직접 발동, Ctrl 회피→연구 후 점멸 | `scripts/world/world_main.gd` 및 입력 로직 |
 | 속성 선택 | Tab 슬롯 전환, Alt+1~5 오행 선택, Alt+6 보조 없음, 일반 휠 줌 | `scripts/world/world_main.gd`, `scripts/world/attribute_selector_hud.gd` |
 | 오행 | 木火土金水 각각 개화, 주속성 1/보조속성 최대 1 장착 | 연구·장착 로직 |
+| 신규 계열 기반 | 동양 음양10 + 서양 기본4/융합6 식별·자격·오행별 음양 선택 모델. 기존 전투 장착과 분리된 F2 메모리 시험 | `data/magic_schools.json`, `scripts/magic_schools.gd`, `scripts/magic_attunement.gd` |
 | 주문 ID | 속성/계보 + 최대 5조작 Multiset, 중복 허용 | `scripts/chant_identity.gd` |
 | 순서별 물성 | B+O+T·tanh, 불안정/붕괴, raw gain 0.8 정식 적용 | `scripts/mana_variation.gd`, `data/chant_v2_prototype.json` |
+| 실시간 수치 관측 | 연구실 **수치 관측** ON/OFF, 입력 단계·누적 Multiset·전/후/Δ·B/O/T/raw/rawΔ·기록Δ·기존 집중/운동 투영과 실제 단계 그래프. OFF는 기존 구체/두 기록 재생 UI로 복귀하는 표시 토글이며 새 정식 기록의 수치 보관은 동일. 미발견 ID/정답/전체 개인 키표 공개 없음 | `scripts/mana_observation.gd`, `mana_observation_panel.gd`, `mana_observation_plot.gd`, `laboratory_panel.gd` |
+| 관측값 출처 | B/raw/전후는 엔진 스냅샷. O/T는 당시 설정으로 분해 후 raw와 검산한 진단값이며 압축 안정성 보정은 별도 표시. 범위에 가려진 raw 변화와 실제 무변화를 구별. 미래 조작의 수치를 예측/생성하지 않음 | `mana_observation.gd::capture()` |
+| 관측 기록 | 신규 정식 실험의 단계에 선택적 `mana_observation.version=1` 메타데이터 저장. 실패·취소도 보존. 과거 기록은 원래 스냅샷만 읽고 O/T·조작 의미를 현재 설정/키맵으로 재계산하지 않음. 기존 저장v6·일지v1 유지 | `experiment_journal.gd::append()`, `mana_observation.gd::from_record()` |
 | 융합 | 양쪽 개화·장착, BIND, 계보·구조 검사; 연구 이력은 정식 허가 아님 | `scripts/fusion_rules.gd` |
 | 등록 주문 | 기존 16종 + 물 추가 12종 = **정식 28종**(물 15종 OH-061~075 포함) | `scripts/formal_spell_registry.gd`, `data/water15_spells.json` |
-| 저장 | `schema_version=6`, 일반 마나 0 이상 + `mana_debt` 보호 | `scripts/character_save.gd`, `scripts/mana_overdraw.gd` |
-| 시험 | F2 개발 패널·물15 QA 및 자동 검사 스크립트 보유 | `tests/run_water15.ps1`, `tests/test_water15_*.gd` |
+| 저장 | `schema_version=6` 유지. 선택적 `magic_attunement.version=1` 검증·왕복 지원. 기존 저장에 필드/음양 자동 추가 없음. 일반 마나 + `mana_debt` 유지 | `scripts/character_save.gd`, `scripts/magic_attunement.gd` |
+| 시험 | F2 → 신규 20계열 데이터 시험: 메모리 해금·활성 선택·기획 ID 검사. 닫으면 선택 폐기. 기존 오행/물15 QA와 격리 저장 복원 유지 | `scripts/magic_foundation_panel.gd`, `tests/run_magic_foundation.ps1` |
+| 최신 관측 회귀 | headless21개 **2,447검사/0실패**, 단독 실제 창 합성3개 **174검사/0실패**. 기존28종 1,280고유 순열·6,094단계 스냅샷 대조 및 ON/OFF 결과 동일. 공식/입력 등 보호 소스11개·실제 사용자 저장/백업14개 SHA-256 불변 | `tests/run_mana_observation.ps1`, `.task002_artifacts/mana_observation/` |
+| 신규 기획 카탈로그 | 270행·20계열·75 OH 계보·중복/누락·조작/예시/BIND 검사. 16,007 고유 순열의 기획 ID 불변성 확인. 실행 주문 등록 아님 | `scripts/magic_design_catalog.gd`, `tests/test_magic_foundation.gd` |
 
 ## 현재 설정·이전 규칙과의 차이
 
@@ -32,12 +38,13 @@
 | 항목 | 상태 및 주의점 |
 |---|---|
 | 전체 75종 주문 | **미완성.** 28종 등록과 75종 설계를 혼동 금지 |
-| 75종 v06 설계 | 현재 GitHub 저장소에서 확인한 문서 원본은 v05. 사용자/로컬에 있는 v06과 실제 diff 확인 전 임의 이식 금지 |
+| 최신 설계 원본 | `Arcane_Legacy_Codex_Magic_270/` 규칙 MD > 권장 CSV/override > 원본 v11 CSV. 구형 수치·기존 조작 구성 차이는 보존하며 자동 덮어쓰기 금지 |
 | 물15 고유 현상 | 실제 연결된 QA용 제안 기본안이 있으나 최종 밸런스·VFX 사람 승인과 구분 |
-| 동양 음양·서양 원소 대륙 | 후속 세계관/속성 설계 검토. 코드에 구현됐다고 주장 금지 |
+| 신규20계열 전투/성장 | 데이터 기반만 구현. 신규 계수·전투 주문·개화/NG+ 시점·최종 활성 슬롯/UI 키는 미구현/미확정. 신규 계열 문맥은 기존 전투·관측·이동술 우회 발현도 차단. 이번 수치 관측은 현재 엔진이 계산하는 기존 오행/중립/융합만 지원하며 음양은 임의 배정하지 않음 |
+| HOLD·지팡이·독·마모·증기 은폐 | 이번 단계 미구현. CSV 설명/구형 스택 문구를 실행 정의로 자동 사용하지 않음 |
 | 고위/시그니처·자동 축약 | 사용자 승인된 세부 설계·별도 구현·검증 필요 |
 | 테스트·플레이 감각 | 과거 보고서의 자동 검사와 합성 입력은 **사람 플레이 승인**이 아님 |
-| 배포/장시간 성능 | 이번 정리에서 릴리스 export·장시간 수동·하드웨어 검증 **미실행** |
+| 배포/장시간 성능 | 릴리스 export·장시간 수동 QA **미실행**. 실제 창 합성 검사는 Intel Iris Xe / Compatibility에서 수행 |
 
 ## 이 문서의 유지 규칙
 

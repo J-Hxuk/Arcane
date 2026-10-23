@@ -31,7 +31,7 @@ func fresh(location := "LAB", main: Variant = "WATER") -> void:
 	game.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(game)
 	root.gui_release_focus()
-	check(game.save_writable and Save.load_file(path)["version"] == 5 and FileAccess.get_file_as_bytes(path + ".v3.bak") == original, "Isolated first normal startup migrates v3 with exact original backup")
+	check(game.save_writable and Save.load_file(path)["version"] == Save.SCHEMA_VERSION and FileAccess.get_file_as_bytes(path + ".v3.bak") == original, "Isolated first normal startup migrates v3 to supported schema with exact original backup")
 	if location == "LAB": game._enter_laboratory()
 	else: game._enter_dungeon("FIXED"); F.reset_arena(game)
 func key(code: Key, pressed: bool) -> void:

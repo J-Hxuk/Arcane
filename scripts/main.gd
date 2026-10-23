@@ -1523,6 +1523,7 @@ func _update_laboratory_live(last_result: Dictionary = {}) -> void:
 	if int(result.get("rules_version",0))>=8:stage={"ready":"구조 유지 · 방출 전 관측","unstable":"윤곽 흔들림 · 불안정한 발현 징후","failed":"구조 붕괴","locked":"연구 권한 부족"}.get(result["state"],"마나 구조 관측")
 	if result.has("manifestation"): stage = "전투 발현 완료 · " + str(result["manifestation"])
 	laboratory_panel.show_live(runes, stage + " · " + result["observation"], player_mana, exhaustion_seconds, debug_state, mode_label)
+	laboratory_panel.observe_simulation(result,not runes.is_empty())
 
 func _interact() -> void:
 	if _controlled_trial() != null:

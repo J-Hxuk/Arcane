@@ -92,6 +92,12 @@ func append(result: Dictionary, outcome: String, spent: float, elapsed_ms: int, 
 	_data["next_id"] = id + 1
 	if int(result["rules_version"])>=8:_data["records"].back()["grammar_profile"]=result.get("grammar_profile",{}).duplicate(true)
 	if result.has("property_version"):_data["records"].back()["property_version"]=result.property_version
+	# New formal records retain the diagnostics that were captured with these
+	# snapshots. Old records are never populated/recalculated on load or replay.
+	if int(result["rules_version"])>=8:
+		var frames := preload("res://scripts/mana_observation.gd").capture(result)
+		for index in frames.size(): _data.records.back().steps[index]["mana_observation"]=frames[index]
+		if not frames.is_empty(): _data.records.back()["mana_observation_version"]=1
 	return id
 
 static func category(record: Dictionary) -> String:

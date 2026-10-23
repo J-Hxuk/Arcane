@@ -96,6 +96,8 @@ static func valid_fusion_access(data: Dictionary) -> bool:
 	return true
 
 static func valid_resources(data:Dictionary) -> bool:
+	# Optional foundation extension only: absent v6 data is never auto-populated.
+	if data.has("magic_attunement") and not preload("res://scripts/magic_attunement.gd").valid(data.magic_attunement):return false
 	if not preload("res://scripts/movement_research.gd").valid(data.get("research",{}).get("movement_research",{})):return false
 	if not preload("res://scripts/world/inventory.gd").valid(data.get("inventory",{})):return false
 	var world=data.get("world",{})

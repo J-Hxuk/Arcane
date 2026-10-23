@@ -21,6 +21,8 @@ var current_option_buttons:Dictionary={}
 var game
 var water_picker:OptionButton
 var water_status:Label
+var foundation_panel: AcceptDialog
+var foundation_button: Button
 
 func setup(owner_game, ui_theme: Theme) -> void:
 	game = owner_game
@@ -146,6 +148,11 @@ func _setup_formal(ui_theme:Theme)->void:
 	for option in {"all_elements":"오행 전체 개화","bindings":"결속 연구 이력 시험","blink":"점멸 강제 해금"}:
 		var toggle:=CheckButton.new();toggle.text={"all_elements":"오행 전체 개화","bindings":"결속 연구 이력 시험","blink":"점멸 강제 해금"}[option];toggle.focus_mode=Control.FOCUS_NONE;current_row.add_child(toggle);current_option_buttons[option]=toggle
 		toggle.toggled.connect(func(enabled):game._set_current_developer_option(option,enabled);refresh())
+	foundation_panel = preload("res://scripts/magic_foundation_panel.gd").new()
+	add_child(foundation_panel)
+	foundation_button = _button(current_row, "신규 20계열 데이터 시험", func(): foundation_panel.open_for(game))
+	panel.visibility_changed.connect(func():
+		if not panel.visible: foundation_panel.hide())
 	var row:=HBoxContainer.new();column.add_child(row)
 	elements=OptionButton.new()
 	for choice in Data.OPTIONS:elements.add_item(choice)

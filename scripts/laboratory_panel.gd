@@ -70,6 +70,11 @@ var lens_caption:Label
 var lens_trial_caption:Label
 var _lens_keys:Array=[]
 var _caption_seconds:=0.0
+var numeric_observation: CheckButton
+var numeric_view: VBoxContainer
+var observation_heading: Label
+var _observation_latest: Dictionary = {}
+var _observation_active := false
 
 func setup(model: Journal, mapping: Profile,formal:=false) -> void:
 	formal_rules=formal
@@ -356,6 +361,8 @@ func open(theme: Theme) -> void:
 	if debug_window != null: debug_window.popup_centered()
 
 func close() -> void:
+	_observation_latest={}; _observation_active=false
+	if numeric_view!=null: numeric_view.reset()
 	notice_seconds=0
 	if discovery_notice!=null:discovery_notice.hide()
 	playing = [false, false]
@@ -372,6 +379,8 @@ func is_editing() -> bool:
 	return focused is LineEdit or focused is TextEdit or focused is SpinBox
 
 func reset_record_selection() -> void:
+	_observation_latest={}; _observation_active=false
+	if numeric_view!=null: numeric_view.reset()
 	# A temporary character may reuse ID 1. Never carry its note into a real record.
 	_note_record_id = -2
 	note.clear()
@@ -383,6 +392,7 @@ func reset_record_selection() -> void:
 func refresh(latest := false,preserve_playback:=false) -> void:
 	if not preserve_playback:playing = [false, false]
 	var records := journal.records()
+	if numeric_view!=null: numeric_view.set_records(records)
 	for side in range(2):
 		var selected := selectors[side].get_selected_id()
 		selectors[side].clear()
@@ -415,7 +425,7 @@ func _render() -> void:
 		if side == 0 and _note_record_id != id:
 			_note_record_id = id
 			note.text = str(record.get("note", ""))
-	for column in archive_columns:column.visible=not records.is_empty()
+	for column in archive_columns:column.visible=not records.is_empty() and not (numeric_observation!=null and numeric_observation.button_pressed)
 
 func _record_selected(_index: int, side: int) -> void:
 	playing[side] = false
@@ -594,6 +604,7 @@ func _formal_layout()->void:
 	trial_button.reparent(toolbar);_button(toolbar,"연구 일지",func():manage_records_requested.emit());research_button.reparent(toolbar);exit_button.reparent(toolbar)
 	_button(toolbar,"기초 이동술 연구",func():movement_research_requested.emit())
 	observation_lens.reparent(toolbar);observation_lens.text="관측렌즈";observation_lens.set_pressed_no_signal(false)
+	numeric_observation=CheckButton.new();numeric_observation.text="수치 관측";numeric_observation.focus_mode=Control.FOCUS_NONE;toolbar.add_child(numeric_observation)
 	var body:=HBoxContainer.new();body.add_theme_constant_override("separation",12);body.size_flags_vertical=Control.SIZE_EXPAND_FILL;content.add_child(body)
 	var center:=VBoxContainer.new();center.custom_minimum_size.x=560;center.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	for side in 2:
@@ -603,6 +614,7 @@ func _formal_layout()->void:
 		views[side].custom_minimum_size=Vector2(220,115);timelines[side].custom_minimum_size.x=60;time_labels[side].custom_minimum_size.x=65;time_labels[side].add_theme_font_size_override("font_size",11)
 		for orb in [before_orbs[side],after_orbs[side]]:orb.custom_minimum_size=Vector2(105,130);orb.observation_gain=1.45
 	var heading:=Label.new();heading.text="실시간 마나 관측";heading.add_theme_font_size_override("font_size",22);center.add_child(heading)
+	observation_heading=heading
 	_add_equipment_row(center)
 	observation_target=OptionButton.new()
 	for element in Profile.OHAENG:observation_target.add_item({"WOOD":"木","FIRE":"火","EARTH":"土","METAL":"金","WATER":"水"}[element]+" · 공명 관측");observation_target.set_item_metadata(observation_target.item_count-1,element)
@@ -611,6 +623,7 @@ func _formal_layout()->void:
 		if arena.controller!=null:arena.controller._select_lab_observation(str(observation_target.get_item_metadata(i))))
 	center.add_child(observation_target)
 	live_orb.reparent(center);live_orb.custom_minimum_size=Vector2(540,230);live_orb.size_flags_vertical=Control.SIZE_EXPAND_FILL;live_orb.observation_gain=1.45
+	numeric_view=preload("res://scripts/mana_observation_panel.gd").new();center.add_child(numeric_view)
 	live.reparent(center);live.custom_minimum_size=Vector2(500,36);live.max_lines_visible=2;preview_label.reparent(center);preview_label.custom_minimum_size=Vector2(500,32);preview_label.max_lines_visible=2
 	lens_readout=Label.new();lens_readout.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;lens_readout.custom_minimum_size.x=500;lens_readout.max_lines_visible=3;center.add_child(lens_readout);lens_readout.hide()
 	lens_caption=Label.new();lens_caption.add_theme_font_size_override("font_size",20);center.add_child(lens_caption);lens_caption.hide()
@@ -621,8 +634,26 @@ func _formal_layout()->void:
 	observation_hint.reparent(content);observation_hint.hide()
 	note.get_parent().reparent(content);message.reparent(content)
 	detailed_observation.free();detailed_observation=null
-	old.queue_free();_render()
+	old.queue_free()
+	numeric_observation.toggled.connect(_set_numeric_observation)
+	numeric_observation.set_pressed_no_signal(true)
+	numeric_view.set_records(journal.records());_set_numeric_observation(true)
 	get_viewport().size_changed.connect(_resize_formal_layout);call_deferred("_resize_formal_layout")
+
+func _set_numeric_observation(enabled: bool) -> void:
+	if numeric_view==null:return
+	numeric_view.visible=enabled
+	if observation_heading!=null:observation_heading.visible=not enabled
+	for control in [live_orb,live,preview_label,comparison_hint]:control.visible=not enabled
+	if enabled:numeric_view.set_live(_observation_latest,_observation_active)
+	else:numeric_view.clear_live()
+	_render()
+
+func observe_simulation(simulation: Dictionary, active: bool) -> void:
+	if numeric_view==null:return
+	# This is a view of the existing inspection, never another resolve/cast.
+	_observation_latest=simulation;_observation_active=active
+	if numeric_observation.button_pressed:numeric_view.set_live(simulation,active)
 
 func _resize_formal_layout()->void:
 	if not formal_rules:return

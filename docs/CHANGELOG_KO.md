@@ -2,6 +2,24 @@
 
 현재 동작은 [CURRENT_STATE](CURRENT_STATE_KO.md), 게임 설계는 [GDD](../GDD_v1_0_KO.md)를 참조한다. **각 작업마다 별도 `IMPLEMENTATION_REPORT_*.md`를 생성하지 않는다.**
 
+## 2026-10-23 — Phase 2A 실시간 마나 관측
+
+- `scripts/mana_observation.gd`: 기존 단계 스냅샷의 입력·Multiset·실제 속성·전후/Δ·B/raw/rawΔ 및 기존 투영을 읽는 관측 계층. O/T는 기존 설정으로 분해 후 raw와 검산한 진단값이며 압축 안정성 보정은 별도 보관. 공식·계수·시전/자원/권한 로직 변경 없음. 새20계열 미정 계수·음양을 추측하지 않음.
+- `mana_observation_panel.gd`, `mana_observation_plot.gd`, `laboratory_panel.gd`, `main.gd`: 연구실 수치 관측 표시 토글, 단계 선택·기록 비교·8개 물성 표/간단한 그래프. 상·하한으로 Δ가 0이어도 raw 변화가 있으면 구분. OFF는 기존 구체/재생 화면으로 복귀. 정답/미발견 주문 ID/전체 개인 키맵 공개 없음.
+- `experiment_journal.gd`: 새 정식 실험에만 선택적 단계 메타데이터 `mana_observation.version=1` 추가. 저장v6/일지v1 유지. 실패·취소도 보관하며 과거 기록은 자동 보충/재계산하지 않음. 미지원·손상된 부가 데이터는 원래 스냅샷만 표시. 취소·방출·퇴장·F2 복원 시 실시간 버퍼 정리.
+- `tests/test_mana_observation.gd`, `test_mana_observation_ui.gd`, `run_mana_observation.ps1`: 기존28종 **1,280고유 순열 / 6,094단계**의 실제 상태·B/raw/O/T 검산·ON/OFF 계산 동일성, 반복·붕괴·취소·이전기록·보안 경계·저장 왕복 검사. headless21개 **2,447 checks / 0 failures**.
+- 실제 Godot 4.7.2 / Intel Iris Xe / Compatibility 창을 **단독 실행**, 수치 관측32 + F2 신규기반56 + 물15 Shift/LMB86 = **174 checks / 0 failures**. 기본 크기에서 표의 8개 물성이 보이는 캡처 확인. 세부 로그/JSON은 `.task002_artifacts/mana_observation/`, 캡처는 기존 `.task002_artifacts/current_world_options/mana_observation_*.png`.
+- 공식/계수/입력/키맵/등록/마나탈진/Phase1 모델 등 보호 소스11개와 실제 사용자 저장·백업14개의 전후 SHA-256 불변. 270종 전투 등록·HOLD·지팡이·독·마모·증기 은폐·보스/월드 변경 없음. 사람 수동 QA·릴리스 export·장시간 성능은 미실행. Phase2B의 복잡한 VFX와 새20계열 물성 계수/관측은 미구현.
+
+## 2026-10-23 — Phase 1 신규20계열 데이터 기반
+
+- `data/magic_schools.json`, `scripts/magic_schools.gd`, `magic_attunement.gd`, `magic_design_catalog.gd`: 동양 음양10/서양10, 독립 기질 선택·전계열 자격 표현, 270종 기획 CSV·75 OH 계보·중복/누락·BIND 검사. 실행 주문 자동 등록 없음.
+- `magic_foundation_panel.gd`, `developer_test_panel.gd`: F2의 **신규 20계열 데이터 시험**. 메모리 해금·활성 선택·기획 Multiset 검사만 제공, 실제 월드 장착/저장 변경 없음. 창 종료 시 선택 폐기.
+- `chant_engine_v2.gd`, `chant_identity.gd`: 신규 문맥이 기존 전투/중립/연구실/이동술로 우회되지 않게 차단. 미정 계수를 임의 적용하지 않음. 정식28종·개인 키맵·raw 공식·밸런스·입력 유지.
+- `character_save.gd`: 기존 v6 유지, 선택적 `magic_attunement.version=1`만 검증. 기존 캐릭터에 필드나 음양을 자동 추가하지 않음. 격리 fixture 저장 왕복·불량 요청 거부·F2 복원 검사 및 실제 저장/백업14개 SHA-256 불변 확인.
+- `tests/run_magic_foundation.ps1`: 최종 headless18개 **2,264 checks / 0 failures**, 실제 창 합성2개 **142 checks / 0 failures**. 신규 기반 검사에서 **16,007 고유 순열** ID 불변 확인. Iris Xe / GL Compatibility. `test_fusion_ux2.gd`의 오래된 v5 고정 기대값을 현재 지원 스키마와 원본 백업 바이트 검사로 보정.
+- 창 합성 검사는 다른 Godot 검사와 병렬 실행 시 실패가 있었고 원래 HEAD 복사본에서도 창 검사 실패를 관측했다. 최종 창 검사는 단독 실행해 통과했으며 병렬 환경의 포커스/타이밍 간섭 원인은 확정하지 않았다. 사람 수동 QA·릴리스 export·신규20계열 전투·HOLD/독/마모/은폐는 미실행/미구현.
+
 ## 2026-10-23 — README/GDD 정리 및 Codex 문서 정책
 
 - 중복·상충하는 시점별 '최신' 단락을 README와 GDD에서 통합·교체.

@@ -26,6 +26,10 @@ static func allowed(row:Dictionary,context:Dictionary)->bool:
 		return preload("res://scripts/fusion_rules.gd").cast_allowed(elements,context)
 	return row.element==context.get("main_attribute")
 static func identify(actions:Array,context:Dictionary,config:Dictionary)->Dictionary:
+	# New school selection is foundation-only. Never fall through to an old
+	# element/neutral spell or developer bypass without an explicit runtime port.
+	if context.has("magic_school_id"):
+		return {"state":"locked", "candidate_ids":[], "reason":"신규 계열은 데이터 시험 단계입니다. 물성 계수와 전투 주문이 아직 등록되지 않았습니다."}
 	if actions.size()>config.maximum_inputs:return {"state":"failed","reason":"일반 영창은 최대 5회 입력입니다."}
 	if "BIND" in actions and not context.get("developer_all",false) and context.get("auxiliary_attributes",[]).is_empty():return {"state":"locked","reason":"결속에는 서로 다른 개화 속성을 주·보조에 장착해야 합니다."}
 	var signature:=multiset(actions);var candidates:Array=[];var matched:=false;var denied_grade:=false;var rejected_structure:=false;var matched_active_family:=false
