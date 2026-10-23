@@ -1,5 +1,7 @@
 # 여기서부터 시작
 
+> **현행 기준:** [현재 README](README.md) · [구현 현황](docs/CURRENT_STATE_KO.md) · [GDD](GDD_v1_0_KO.md) · [변경 이력](docs/CHANGELOG_KO.md). 이 파일은 빠른 시작용이고 구현 단계별 보고를 누적하지 않습니다.
+
 최신: [물속성15종·raw 정식 통합 보고](IMPLEMENTATION_REPORT_WATER15_INTEGRATION_KO.md). F5는 raw gain0.8과 등록28종을 기본 사용한다. 같은 속성·조작 구성은 순서와 무관하게 같은 ID이고 물성·성공·특수현상은 순서에 따라 달라진다. 등급·발견·고위 조작·결속 연구 이력은 시전 허가가 아니다. [물15 통합 수동 QA](docs/qa/ARCANE_LEGACY_WATER15_MANUAL_QA_KO.md)는 F5 → F2 → 물15 QA 연구실/일반 표적/수호기사로 한 번에 진행한다. 주문·약한/강한 현상 준비 → 조준·LMB, 시험 종료로 원래 저장·키표·진행을 복구한다. 마나1000은 임시 시험 전용이다.
 
 1. Godot 4.7.2에서 `project.godot`을 열고 **F5**를 누른다. 최신 영창이 기본 적용된 마을로 시작한다.

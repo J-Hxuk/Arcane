@@ -1,3 +1,5 @@
+> **2026-10-23 문서 정책:** 이 파일은 과거 Phase 작업 지시의 역사 기록입니다. 새 VS Code Codex 작업은 루트 [AGENTS.md](AGENTS.md)를 먼저 따르세요. **새 `IMPLEMENTATION_REPORT_*.md`를 자동 생성하지 않고**, 완료 현황은 [CURRENT_STATE](docs/CURRENT_STATE_KO.md), 변경 이력은 [CHANGELOG](docs/CHANGELOG_KO.md)만 갱신합니다. 이 문서의 과거 '완료 보고 형식'이 AGENTS 정책과 충돌하면 AGENTS가 우선합니다.
+
 # 2026-10-19 후속 수정 — 수식 비교·융합·Alt HUD
 
 > **문서 정리(2026-10-23):** 아래의 과거 구현 보고서 링크는 삭제 전 Git 커밋에 고정된 역사 기록입니다. 현재 구현 및 확정 규칙은 최신 코드와 후속 문서를 우선합니다.
